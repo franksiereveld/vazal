@@ -76,13 +76,12 @@ export default function Home() {
             </h1>
             
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              From desktop to data center. Complete control, absolute privacy, infinite scale.
+              Accelerate Yourself. Complete control, absolute privacy, infinite scale, good for the planet
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Button size="lg" className="text-base px-8 h-12 group">
-                Deploy Your Agent
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Start Your Agent &gt;
               </Button>
               <Button size="lg" variant="outline" className="text-base px-8 h-12">
                 Learn More
@@ -102,9 +101,9 @@ export default function Home() {
             transition={{ duration: 0.6 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">Your Journey</h2>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">Our Journey</h2>
             <p className="text-lg text-muted-foreground">
-              Start small, scale infinitely
+              Starting in our garage, NYC in H1 2026, global expansion in 2027 (each MW means 500 protected acres of nature)
             </p>
           </motion.div>
 
@@ -118,22 +117,22 @@ export default function Home() {
             {[
               {
                 icon: Cpu,
-                title: "PC",
-                subtitle: "Start Here",
-                description: "Deploy on your desktop with 2x RTX 4090. 48GB VRAM, 25-35 tokens/sec. Complete privacy, instant response.",
+                title: "1 PC",
+                subtitle: "Today in Zurich",
+                description: "Deployed on our desktop with 2x RTX 4090. 48GB VRAM, 25-35 tokens/sec. Complete privacy, instant response.",
                 specs: "2x RTX 4090 • 128GB RAM • $6,975"
               },
               {
                 icon: Server,
-                title: "Rack",
-                subtitle: "Scale Up",
-                description: "Expand to a pilot rack with immersion cooling. 167 racks capacity, 58% power savings, production-ready.",
+                title: "One Rack",
+                subtitle: "Scaling Up in NYC",
+                description: "Expanding to a pilot rack with immersion cooling. 167 racks capacity, 58% power savings, production-ready.",
                 specs: "32x AI Accelerators • 7.2kW • $290,000"
               },
               {
                 icon: Database,
-                title: "3MW Data Center",
-                subtitle: "Go Global",
+                title: "3MW Data Center x 10",
+                subtitle: "Going Green x Global",
                 description: "Full-scale deployment in Ukiah, CA. Carbon-negative operations, unlimited capacity, enterprise-grade.",
                 specs: "167 Racks • 1.24MW • Immersion Cooled"
               }
