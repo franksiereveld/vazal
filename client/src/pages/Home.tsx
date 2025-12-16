@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useTheme } from "@/contexts/ThemeContext";
-import { ArrowRight, Cpu, Database, Zap, Moon, Sun, Server, Sparkles } from "lucide-react";
+import { ArrowRight, Cpu, Database, Zap, Moon, Sun, Server, Sparkles, Monitor } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Home() {
@@ -118,24 +118,24 @@ export default function Home() {
           >
             {[
               {
-                icon: Cpu,
-                title: "1 PC",
+                icon: Monitor,
+                title: "1 Hard Core Agentic PC",
                 subtitle: "Today in Zurich",
                 description: "Deployed on our desktop with 2x RTX 4090. 48GB VRAM, 25-35 tokens/sec. Complete privacy, instant response.",
                 specs: "2x RTX 4090 • 128GB RAM "
               },
               {
                 icon: Server,
-                title: "One Rack",
+                title: "Proprietary Architecture",
                 subtitle: "Scaling Up in NYC in '26",
-                description: "Pilot hybrid rack: 4x NVIDIA L40S + 32x Qualcomm AI accelerators. Immersion cooling, 12kW power, validates architecture for green, ethical scale. ",
-                specs: "Hybrid Architecture • 12kW • Visit us in Manhattan"
+                description: "Piloting hybrid rack: 4x NVIDIA L40S + 32x Qualcomm AI accelerators. Immersion cooling, 12kW power, validating architecture for green, ethical scale with 250 racks per 3MW DC. ",
+                specs: "Hybrid Pilot Rack • 12kW • Visit us in Manhattan"
               },
               {
                 icon: Database,
-                title: "3MW Data Centers x 10",
+                title: "3MW Data Centers x N",
                 subtitle: "Going Green & Global",
-                description: "Full-scale deployment in CA, SC, LA with 60% power savings vs air-cooled, and 95% water savings. Expanding to Sweden, Slovakia, Spain in 2027, and to 500MW globally in 2030. Sequestering net 78,000 tons carbon per year.",
+                description: "Full-scale deployment in CA, SC, LA with 60% power savings vs air-cooled, and 95% water savings. Expanding to Sweden, Slovakia, Spain in 2027, and to 500MW globally in 2030. Sequestering net 78k tons carbon per year.",
                 specs: "250 Racks • 3MW • Immersion Cooled"
               }
             ].map((stage, index) => (
