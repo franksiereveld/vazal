@@ -125,15 +125,15 @@ export default function Home() {
               {
                 icon: Server,
                 title: "One Rack",
-                subtitle: "Scaling Up in NYC",
+                subtitle: "Scaling Up in NYC in '26",
                 description: "Pilot hybrid rack: 4x NVIDIA L40S + 32x Qualcomm AI accelerators. Immersion cooling, 12kW power, validates architecture for green, ethical scale. ",
-                specs: "Hybrid Architecture • 12kW • Manhattan"
+                specs: "Hybrid Architecture • 12kW • Visit us in Manhattan"
               },
               {
                 icon: Database,
                 title: "3MW Data Centers x 10",
                 subtitle: "Going Green & Global",
-                description: "Full-scale deployment in CA, SC, LA. Targeting 250 hybrid racks per site, 60% power savings vs air-cooled. 95% water savings. Extending to Sweden, Slovakia, Spain in 2028.",
+                description: "Full-scale deployment in CA, SC, LA. Targeting 250 hybrid racks per site, 60% power savings vs air-cooled. 95% water savings. Extending to Sweden, Slovakia, Spain in 2027.",
                 specs: "250 Racks • 3MW • Immersion Cooled"
               }
             ].map((stage, index) => (
