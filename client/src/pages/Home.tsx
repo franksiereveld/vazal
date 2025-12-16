@@ -120,20 +120,20 @@ export default function Home() {
                 title: "1 PC",
                 subtitle: "Today in Zurich",
                 description: "Deployed on our desktop with 2x RTX 4090. 48GB VRAM, 25-35 tokens/sec. Complete privacy, instant response.",
-                specs: "2x RTX 4090 • 128GB RAM • $6,975"
+                specs: "2x RTX 4090 • 128GB RAM "
               },
               {
                 icon: Server,
                 title: "One Rack",
                 subtitle: "Scaling Up in NYC",
-                description: "Pilot hybrid rack: 4x NVIDIA L40S + 32x Qualcomm AI accelerators. Immersion cooling, 12kW power, validates architecture for scale.",
-                specs: "Hybrid Architecture • 12kW • $229K"
+                description: "Pilot hybrid rack: 4x NVIDIA L40S + 32x Qualcomm AI accelerators. Immersion cooling, 12kW power, validates architecture for green, ethical scale. ",
+                specs: "Hybrid Architecture • 12kW • Manhattan"
               },
               {
                 icon: Database,
-                title: "3MW Data Center x 10",
-                subtitle: "Going Green x Global",
-                description: "Full-scale deployment in CA, SC, LA. 250 hybrid racks per site, 60% power savings vs air-cooled. Extending to Sweden, Slovakia, Spain in 2028.",
+                title: "3MW Data Centers x 10",
+                subtitle: "Going Green & Global",
+                description: "Full-scale deployment in CA, SC, LA. Targeting 250 hybrid racks per site, 60% power savings vs air-cooled. 95% water savings. Extending to Sweden, Slovakia, Spain in 2028.",
                 specs: "250 Racks • 3MW • Immersion Cooled"
               }
             ].map((stage, index) => (
