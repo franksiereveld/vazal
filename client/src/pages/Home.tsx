@@ -105,7 +105,7 @@ export default function Home() {
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-4">Our Journey</h2>
             <p className="text-lg text-muted-foreground">
-              Starting in our garage, NYC in H1 2026, global expansion in 2027. We pledge that each added MW is matched by 500 acres of protected nature, nearby our data center. Sequestering carbon, enhancing biodiversity, open to the community
+              Starting in our garage, NYC in H1 2026, global expansion in 2027. We pledge that each added MW is matched by 500 acres of protected nature, nearby each DC location. Sequestering carbon, enhancing biodiversity, open to the community.
             </p>
           </motion.div>
 
