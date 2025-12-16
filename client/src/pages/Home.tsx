@@ -126,15 +126,15 @@ export default function Home() {
                 icon: Server,
                 title: "One Rack",
                 subtitle: "Scaling Up in NYC",
-                description: "Expanding to a pilot rack with immersion cooling. 167 racks capacity, 58% power savings, production-ready.",
-                specs: "32x AI Accelerators • 7.2kW • $290,000"
+                description: "Pilot hybrid rack: 4x NVIDIA L40S + 32x Qualcomm AI accelerators. Immersion cooling, 12kW power, validates architecture for scale.",
+                specs: "Hybrid Architecture • 12kW • $229K"
               },
               {
                 icon: Database,
                 title: "3MW Data Center x 10",
                 subtitle: "Going Green x Global",
-                description: "Full-scale deployment in CA, SC, LA. Carbon-negative operations, unlimited capacity, enterprise-grade. Extending to Sweden, Slovakia, Spain in 2028.",
-                specs: "167 Racks • 1.24MW • Immersion Cooled"
+                description: "Full-scale deployment in CA, SC, LA. 250 hybrid racks per site, 60% power savings vs air-cooled. Extending to Sweden, Slovakia, Spain in 2028.",
+                specs: "250 Racks • 3MW • Immersion Cooled"
               }
             ].map((stage, index) => (
               <motion.div key={index} variants={fadeIn}>
