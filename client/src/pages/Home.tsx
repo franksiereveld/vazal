@@ -135,7 +135,7 @@ export default function Home() {
                 icon: Database,
                 title: "3MW Data Centers x 10",
                 subtitle: "Going Green & Global",
-                description: "Full-scale deployment in CA, SC, LA. Targeting 250 hybrid racks per site, 60% power savings vs air-cooled. 95% water savings. Extending to Sweden, Slovakia, Spain in 2027.",
+                description: "Full-scale deployment in CA, SC, LA with 60% power savings vs air-cooled, and 95% water savings. Expanding to Sweden, Slovakia, Spain in 2027, and to 500MW globally in 2030. Sequestering net 78,000 tons carbon per year.",
                 specs: "250 Racks • 3MW • Immersion Cooled"
               }
             ].map((stage, index) => (
