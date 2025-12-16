@@ -75,8 +75,8 @@ export default function Home() {
               <span className="inline-block mt-2">AI Agent</span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              Accelerate Yourself! Complete control, absolute privacy, three ethical laws, infinite scale yet good for the planet
+            <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
+              Accelerate Yourself! Complete control, absolute privacy. Three ethical laws, infinite scale yet good for the planet.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
