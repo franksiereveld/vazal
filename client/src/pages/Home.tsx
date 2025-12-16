@@ -76,7 +76,9 @@ export default function Home() {
             </h1>
             
             <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto">
-              Accelerate Yourself!  Complete control, absolute privacy.  Three ethical laws, infinite scale yet good for the planet.
+              Accelerate Yourself!  Complete control, absolute privacy.
+              <br />
+              Three ethical laws, infinite scale yet good for the planet.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
