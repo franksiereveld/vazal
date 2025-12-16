@@ -76,7 +76,7 @@ export default function Home() {
             </h1>
             
             <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-              Accelerate Yourself. Complete control, absolute privacy, infinite scale, good for the planet
+              Accelerate Yourself! Complete control, absolute privacy, three ethical laws, infinite scale yet good for the planet
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -103,7 +103,7 @@ export default function Home() {
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-4">Our Journey</h2>
             <p className="text-lg text-muted-foreground">
-              Starting in our garage, NYC in H1 2026, global expansion in 2027 (each MW means 500 protected acres of nature)
+              Starting in our garage, NYC in H1 2026, global expansion in 2027. We pledge that each added MW is matched by 500 additional acres of protected nature, nearby our data center. Sequestering carbon, enhancing biodiversity, open to the community
             </p>
           </motion.div>
 
