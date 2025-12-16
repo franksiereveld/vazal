@@ -167,18 +167,7 @@ export default function Home() {
             ))}
           </motion.div>
 
-          {/* Journey Line */}
-          <div className="relative mt-8 hidden md:block">
-            <div className="absolute top-0 left-0 right-0 h-0.5 bg-border" style={{ top: '-12rem' }}>
-              <motion.div
-                initial={{ width: 0 }}
-                whileInView={{ width: '100%' }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.5, delay: 0.3 }}
-                className="h-full bg-foreground"
-              />
-            </div>
-          </div>
+
         </div>
       </section>
 
