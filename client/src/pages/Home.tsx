@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ArrowRight, Cpu, Database, Zap, Moon, Sun, Server, Sparkles, Monitor } from "lucide-react";
 import { motion } from "framer-motion";
+import { Link } from "wouter";
 
 export default function Home() {
   const { theme, toggleTheme } = useTheme();
@@ -85,9 +86,11 @@ export default function Home() {
               <Button size="lg" className="text-base px-8 h-12 group">
                 Start Your Agent &gt;
               </Button>
-              <Button size="lg" variant="outline" className="text-base px-8 h-12">
-                Learn More
-              </Button>
+              <Link href="/mission">
+                <Button size="lg" variant="outline" className="text-base px-8 h-12">
+                  Learn More
+                </Button>
+              </Link>
             </div>
           </motion.div>
         </div>
