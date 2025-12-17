@@ -119,9 +119,9 @@ export default function Home() {
             {[
               {
                 icon: Monitor,
-                title: "1 Hard Core Agentic PC",
+                title: "Full Stack Hardware",
                 subtitle: "Today in Zurich",
-                description: "Deployed on our desktop with 2x RTX 4090. 48GB VRAM, 25-35 tokens/sec. Complete privacy, instant response.",
+                description: "Deployed on our custom server with 2x RTX 4090. 48GB VRAM, 25-35 tokens/sec. Complete privacy, instant response.",
                 specs: "2x RTX 4090 • 128GB RAM "
               },
               {
