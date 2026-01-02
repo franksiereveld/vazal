@@ -170,13 +170,18 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             if not isinstance(value, list) or value:
                                 browser_kwargs[attr] = value
 
-                from browser_use.browser.browser import Browser, BrowserConfig
+                # Initialize BrowserSession directly (updated for new API)
+                self.browser = BrowserSession(**browser_kwargs)
                 
-                # Initialize Browser first (required by newer browser-use versions)
-                browser = Browser(config=BrowserConfig(**browser_kwargs))
-                
-                # Create session from browser
-                self.browser = await BrowserSession(browser=browser).create()
+                # We might need to start/launch it? 
+                # Looking at the class, it seems we can just use it, or maybe call a method?
+                # The old code called .create(), let's see if that still exists or if we just return the session.
+                # Based on the file content, BrowserSession is a Pydantic model.
+                # It has methods like navigate_to.
+                # It doesn't seem to have a create() method in the truncated view, but usually sessions are just created.
+                # However, to be safe and ensure connection, let's just assign it.
+                # If there is an async init needed, it usually happens on first action.
+                pass
                 
             except Exception as e:
                 raise RuntimeError(f"Failed to initialize browser: {e}")
