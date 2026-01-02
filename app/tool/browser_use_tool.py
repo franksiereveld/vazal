@@ -323,14 +323,24 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 elif action == "extract_content":
                     page = await context.get_current_page()
                     content = await page.inner_text("body")
+                    current_url = page.url.lower()
                     
                     # --- SMART EXTRACTION LOGIC ---
-                    # 1. Truncate raw content to a safe limit for the summarizer (e.g., 20k chars)
-                    # This is much larger than the context limit because it's a fresh LLM call.
-                    safe_content = content[:20000] 
+                    
+                    # 1. BYPASS FOR SEARCH ENGINES
+                    # If we are on a search results page, the "content" is just a list of links.
+                    # The summarizer often thinks this is "no info". We should return raw text
+                    # so the agent can see the links and click them.
+                    search_engines = ["google.com", "duckduckgo.com", "bing.com", "yahoo.com"]
+                    if any(se in current_url for se in search_engines):
+                        if len(content) > 5000:
+                            content = content[:5000] + "\n... [TRUNCATED due to length]"
+                        return ToolResult(output=f"Search Results Page (Raw Content):\n{content}")
+
+                    # 2. NORMAL PAGE: Use Smart Extraction
+                    safe_content = content[:100000] 
                     
                     if goal:
-                        # 2. Use LLM to extract specific information
                         extraction_prompt = (
                             f"You are a helpful assistant. Extract information relevant to the following goal from the text below.\n"
                             f"Goal: {goal}\n\n"
@@ -340,11 +350,17 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         )
                         try:
                             summary = await self.llm.ask([Message.user_message(extraction_prompt)])
+                            
+                            # --- FALLBACK LOGIC ---
+                            if "No relevant information found" in summary:
+                                fallback_content = content[:2000]
+                                return ToolResult(output=f"⚠️ Smart extraction found no info. Returning raw content head:\n\n{fallback_content}...")
+                                
                             return ToolResult(output=f"✅ Extracted Summary for '{goal}':\n\n{summary}")
                         except Exception as e:
-                            return ToolResult(error=f"Smart extraction failed: {e}. Raw content length: {len(content)}")
+                            fallback_content = content[:2000]
+                            return ToolResult(error=f"Smart extraction failed: {e}. Returning raw content head:\n\n{fallback_content}...")
                     else:
-                        # Fallback if no goal provided: just return truncated text
                         if len(content) > 5000:
                             content = content[:5000] + "\n... [TRUNCATED due to length]"
                         return ToolResult(output=f"Extracted content (No goal provided):\n{content}")
