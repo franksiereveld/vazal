@@ -3,8 +3,9 @@ import base64
 import json
 from typing import Generic, Optional, TypeVar
 
-# Updated imports for new browser-use API
-from browser_use.browser.session import BrowserSession
+# Updated imports for browser-use v0.1.40
+from browser_use.browser.browser import Browser, BrowserConfig
+from browser_use.browser.context import BrowserContext
 from browser_use.dom.service import DomService
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
@@ -121,7 +122,8 @@ class BrowserUseTool(BaseTool, Generic[Context]):
     }
 
     lock: asyncio.Lock = Field(default_factory=asyncio.Lock)
-    browser: Optional[BrowserSession] = Field(default=None, exclude=True)
+    browser: Optional[Browser] = Field(default=None, exclude=True)
+    browser_context: Optional[BrowserContext] = Field(default=None, exclude=True)
     dom_service: Optional[DomService] = Field(default=None, exclude=True)
     web_search_tool: WebSearch = Field(default_factory=WebSearch, exclude=True)
 
@@ -136,16 +138,15 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             raise ValueError("Parameters cannot be empty")
         return v
 
-    async def _ensure_browser_initialized(self) -> BrowserSession:
-        """Ensure browser session is initialized."""
-        if self.browser is None:
+    async def _ensure_browser_initialized(self) -> BrowserContext:
+        """Ensure browser context is initialized."""
+        if self.browser_context is None:
             try:
-                # New API: Pass arguments directly to BrowserSession
-                # IMPORTANT: headless=True by default for stability in many envs, unless config overrides
+                # Initialize Browser first
                 browser_kwargs = {"headless": True, "disable_security": True}
 
                 if config.browser_config:
-                    from browser_use.browser.profile import ProxySettings
+                    from playwright._impl._api_structures import ProxySettings
 
                     # handle proxy settings.
                     if config.browser_config.proxy and config.browser_config.proxy.server:
@@ -170,23 +171,15 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             if not isinstance(value, list) or value:
                                 browser_kwargs[attr] = value
 
-                # Initialize BrowserSession directly (updated for new API)
-                self.browser = BrowserSession(**browser_kwargs)
+                self.browser = Browser(config=BrowserConfig(**browser_kwargs))
                 
-                # We might need to start/launch it? 
-                # Looking at the class, it seems we can just use it, or maybe call a method?
-                # The old code called .create(), let's see if that still exists or if we just return the session.
-                # Based on the file content, BrowserSession is a Pydantic model.
-                # It has methods like navigate_to.
-                # It doesn't seem to have a create() method in the truncated view, but usually sessions are just created.
-                # However, to be safe and ensure connection, let's just assign it.
-                # If there is an async init needed, it usually happens on first action.
-                pass
+                # Create new context
+                self.browser_context = await self.browser.new_context()
                 
             except Exception as e:
                 raise RuntimeError(f"Failed to initialize browser: {e}")
 
-        return self.browser
+        return self.browser_context
 
     async def execute(
         self,
@@ -204,8 +197,8 @@ class BrowserUseTool(BaseTool, Generic[Context]):
     ) -> ToolResult:
         async with self.lock:
             try:
-                # We use the session as the context
-                session = await self._ensure_browser_initialized()
+                # We use the context
+                context = await self._ensure_browser_initialized()
 
                 # Navigation actions
                 if action == "go_to_url":
@@ -213,13 +206,12 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(error="URL is required")
                     
                     # Use high-level navigate_to method
-                    await session.navigate_to(url)
+                    await context.navigate_to(url)
                     return ToolResult(output=f"Navigated to {url}")
 
                 elif action == "go_back":
-                    # Assuming go_back exists or we use page
                     try:
-                        page = await session.get_current_page()
+                        page = await context.get_current_page()
                         await page.go_back()
                         return ToolResult(output="Navigated back")
                     except:
@@ -227,7 +219,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "refresh":
                     try:
-                        page = await session.get_current_page()
+                        page = await context.get_current_page()
                         await page.reload()
                         return ToolResult(output="Refreshed current page")
                     except:
@@ -240,19 +232,15 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     encoded_query = urllib.parse.quote(query)
                     search_url = f"https://duckduckgo.com/?q={encoded_query}"
                     
-                    await session.navigate_to(search_url)
+                    await context.navigate_to(search_url)
                     return ToolResult(output=f"Searched for '{query}'")
 
                 elif action == "click_element":
                     if index is None:
                         return ToolResult(error="Index is required")
                     
-                    # Use DomService if available, or session methods?
-                    # session doesn't seem to have click_element directly in the list I saw
-                    # but it has get_dom_element_by_index
-                    
                     if self.dom_service is None:
-                         page = await session.get_current_page()
+                         page = await context.get_current_page()
                          self.dom_service = DomService(page)
                     
                     await self.dom_service.click_element(index)
@@ -263,7 +251,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(error="Index and text are required")
                     
                     if self.dom_service is None:
-                         page = await session.get_current_page()
+                         page = await context.get_current_page()
                          self.dom_service = DomService(page)
                          
                     await self.dom_service.type_text(index, text)
@@ -271,13 +259,13 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "scroll_down":
                     amount = scroll_amount if scroll_amount else 500
-                    page = await session.get_current_page()
+                    page = await context.get_current_page()
                     await page.evaluate(f"window.scrollBy(0, {amount})")
                     return ToolResult(output=f"Scrolled down {amount}px")
 
                 elif action == "scroll_up":
                     amount = scroll_amount if scroll_amount else 500
-                    page = await session.get_current_page()
+                    page = await context.get_current_page()
                     await page.evaluate(f"window.scrollBy(0, -{amount})")
                     return ToolResult(output=f"Scrolled up {amount}px")
 
