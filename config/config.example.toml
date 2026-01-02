@@ -78,19 +78,21 @@ temperature = 0.0                          # Controls randomness for vision mode
 # password = "proxy-password"
 
 # Optional configuration, Search settings.
-# [search]
-# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing".
-#engine = "Google"
+[search]
+# Search engine for agent to use. Default is "DuckDuckGo", can be set to "Tavily" or "Google" or "Bing".
+engine = "DuckDuckGo"
+# API key for Tavily search engine (required if engine is "Tavily")
+api_key = "YOUR_TAVILY_API_KEY"
 # Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
-#fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
+fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
 # Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.
-#retry_delay = 60
+retry_delay = 60
 # Maximum number of times to retry all engines when all fail. Default is 3.
-#max_retries = 3
+max_retries = 3
 # Language code for search results. Options: "en" (English), "zh" (Chinese), etc.
-#lang = "en"
+lang = "en"
 # Country code for search results. Options: "us" (United States), "cn" (China), etc.
-#country = "us"
+country = "us"
 
 
 ## Sandbox configuration
