@@ -136,10 +136,24 @@ async def main():
             print(f"\n🤖 Vazal: {final_answer}\n")
 
             # 4. Suggest Lesson
+            # Construct context from last few messages to detect follow-up corrections
+            context_summary = ""
+            if len(agent.memory.messages) > 4:
+                # Get last 2 user messages and last 2 assistant messages
+                recent = agent.memory.messages[-4:]
+                for m in recent:
+                    role = "User" if m.role == "user" else "Assistant"
+                    content = m.content if m.content else "[Tool Call/Result]"
+                    context_summary += f"{role}: {content}\n"
+            else:
+                context_summary = f"User: {prompt}\nResult: {final_answer}"
+
             reflection_prompt = (
-                f"Review the task '{prompt}' and the result. "
-                "Did we learn any specific preference, constraint, or fact about the user or environment? "
-                "If yes, output ONLY the lesson text. If no, output 'NO'."
+                f"Review this interaction:\n{context_summary}\n"
+                "Did the user provide a CORRECTION, PREFERENCE, or NEW CONSTRAINT in this follow-up? "
+                "Examples: 'I meant Italian food', 'Use Python 3.10', 'Don't use that tool'.\n"
+                "If yes, output ONLY the lesson text (e.g. 'User prefers Italian food'). "
+                "If no specific lesson, output 'NO'."
             )
             # Wrap string in Message object
             lesson_suggestion = await agent.llm.ask([Message.user_message(reflection_prompt)])
