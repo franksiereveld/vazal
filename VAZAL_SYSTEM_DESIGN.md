@@ -20,9 +20,9 @@ graph TD
     
     subgraph "The Hands (app/tool)"
         Agent --> Tools[Tool Collection]
-        Tools --> Search[FastSearch (Tavily/DDG)]
-        Tools --> Browser[BrowserUse (Playwright)]
-        Tools --> Editor[StrReplaceEditor (Block Edit)]
+        Tools --> Search["FastSearch (Tavily/DDG)"]
+        Tools --> Browser["BrowserUse (Playwright)"]
+        Tools --> Editor["StrReplaceEditor (Block Edit)"]
         Tools --> Python[Python Sandbox]
         Tools --> Bash[Bash Executor]
     end
