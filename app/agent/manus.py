@@ -12,6 +12,7 @@ from app.tool.browser_use_tool import BrowserUseTool
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
+from app.tool.block_editor import BlockEditor
 from app.tool.fast_search import FastSearch
 from app.memory.lessons import LessonManager
 
@@ -28,7 +29,8 @@ SYSTEM_PROMPT = (
     "2. 'python_execute': Run Python code for calculations, data analysis, or CREATING FILES.\n"
     "3. 'browser_use': Use for complex web tasks OR as a fallback for search.\n"
     "   - ACTION: 'go_to_url' -> Visit specific pages.\n"
-    "4. 'str_replace_editor': Edit existing code or text files.\n"
+    "4. 'block_editor': POWERFUL editor. Use 'read' to see line numbers, then 'insert'/'delete'/'replace'.\n"
+    "   - PREFER 'block_editor' over 'str_replace_editor' for code edits.\n"
     "5. 'terminate': Call this when DONE. \n"
     "   - IMPORTANT: This tool takes NO arguments (or only 'status').\n"
     "   - BEFORE calling terminate, you MUST print/say the final answer to the user.\n\n"
@@ -63,6 +65,7 @@ class Vazal(ToolCallAgent):
             PythonExecute(),
             FastSearch(),
             BrowserUseTool(),
+            BlockEditor(),
             StrReplaceEditor(),
             AskHuman(),
             Terminate(),
