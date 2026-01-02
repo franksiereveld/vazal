@@ -95,26 +95,35 @@ async def main():
                 # Iterate backwards
                 for msg in reversed(agent.memory.messages):
                     if msg.role == "assistant":
-                        # 1. Check if it was a terminate call with output
+                        # Priority 1: Explicit output in terminate() call
+                        terminate_output = None
                         if msg.tool_calls:
                             for tc in msg.tool_calls:
                                 if tc.function.name == "terminate":
                                     import json
                                     try:
                                         args = json.loads(tc.function.arguments)
-                                        # If terminate has explicit output, use it
                                         if args.get("output"):
-                                            final_answer = args.get("output")
-                                            break # Found it
+                                            terminate_output = args.get("output")
                                     except: pass
-                            else:
-                                continue # Continue to next message if no terminate found in this one
-                            break # Break outer loop if terminate found
-
-                        # 2. If it has text content (and not just a tool call), use that
+                        
+                        if terminate_output:
+                            final_answer = terminate_output
+                            break
+                        
+                        # Priority 2: The thought/content of the message (summary)
                         if msg.content:
                             final_answer = msg.content
                             break
+                        
+                        # If we found a terminate call but no output and no content, 
+                        # we might want to keep looking back, OR rely on the fallback below.
+                        # But usually the assistant message with terminate HAS content.
+                        if msg.tool_calls and any(tc.function.name == "terminate" for tc in msg.tool_calls):
+                             # If we are here, it means terminate was called with NO output and NO thought.
+                             # We should let the loop continue to find previous tool outputs? 
+                             # No, usually we want to fall back to the last tool output.
+                             pass
                 
                 # Fallback: If final_answer is still default, look for the last tool output
                 if final_answer == "✅ Task Completed.":
