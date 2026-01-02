@@ -135,14 +135,41 @@ class PPTCreatorTool(BaseTool):
                     slide.shapes.title.text = slide_data.get("title", "Untitled")
 
                 # Set Content (Bullet Points)
-                if slide.placeholders and len(slide.placeholders) > 1:
-                    body_shape = slide.placeholders[1]
+                body_shape = None
+                # Try to find the standard body placeholder (idx 1)
+                for shape in slide.placeholders:
+                    if shape.placeholder_format.idx == 1:
+                        body_shape = shape
+                        break
+                
+                # Fallback: look for any placeholder that has a text frame and is not the title
+                if not body_shape:
+                    for shape in slide.placeholders:
+                        if shape.has_text_frame and shape != slide.shapes.title:
+                            body_shape = shape
+                            break
+
+                if body_shape:
                     tf = body_shape.text_frame
                     tf.text = ""  # Clear default text
-                    
                     for point in slide_data.get("content", []):
                         p = tf.add_paragraph()
                         p.text = point
+                        p.level = 0
+                else:
+                    # Fallback: Create a text box manually if no placeholder found
+                    print("ℹ️ No body placeholder found. Creating manual text box.")
+                    left = Inches(0.5)
+                    top = Inches(1.5)
+                    width = Inches(5.0)
+                    height = Inches(5.0)
+                    txBox = slide.shapes.add_textbox(left, top, width, height)
+                    tf = txBox.text_frame
+                    tf.word_wrap = True
+                    
+                    for point in slide_data.get("content", []):
+                        p = tf.add_paragraph()
+                        p.text = f"• {point}"
                         p.level = 0
 
                 # Add Image
