@@ -48,7 +48,7 @@ async def classify_intent(agent, prompt):
         "RESPONSE: [If CHAT, write the response here. If TASK, write the task description]"
     )
     # Wrap string in Message object
-    return await agent.llm.ask([Message.user_message(classifier_prompt)])
+    return await agent.llm.ask([Message.user_message(classifier_prompt)], stream=False)
 
 async def generate_plan(agent, prompt):
     """
@@ -60,7 +60,7 @@ async def generate_plan(agent, prompt):
         "Focus on the key steps (e.g., 'Search for X', 'Download images', 'Create PPT').\n"
         "Do NOT include internal details like 'call tool X'. Keep it user-friendly."
     )
-    return await agent.llm.ask([Message.user_message(plan_prompt)])
+    return await agent.llm.ask([Message.user_message(plan_prompt)], stream=False)
 
 async def suggest_and_save_lesson(agent, prompt, final_answer):
     """
@@ -90,7 +90,7 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
     
     try:
         # Wrap string in Message object
-        lesson_suggestion = await agent.llm.ask([Message.user_message(reflection_prompt)])
+        lesson_suggestion = await agent.llm.ask([Message.user_message(reflection_prompt)], stream=False)
 
         if lesson_suggestion and "NO" not in lesson_suggestion.upper() and len(lesson_suggestion) > 5:
             print(f"💡 Suggested Lesson: \"{lesson_suggestion}\"")
@@ -99,7 +99,7 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
                 agent.memory_manager.save_lesson(lesson_suggestion)
                 print("✅ Lesson saved.")
         else:
-            print("🤷 No new lessons learned.")
+            print("No new lessons learned.")
     except Exception as e:
         logger.error(f"Error in lesson suggestion: {e}")
 

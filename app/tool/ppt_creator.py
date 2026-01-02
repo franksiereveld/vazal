@@ -66,8 +66,11 @@ class PPTCreatorTool(BaseTool):
             
             local_path = os.path.join(input_dir, filename)
 
-            # Download the file
-            response = requests.get(url, stream=True, timeout=10)
+            # Download the file with User-Agent to avoid 403 Forbidden
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }
+            response = requests.get(url, headers=headers, stream=True, timeout=10)
             response.raise_for_status()
             
             with open(local_path, 'wb') as f:
