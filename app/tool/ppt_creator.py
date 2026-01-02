@@ -97,7 +97,14 @@ class PPTCreatorTool(BaseTool):
                 prs = Presentation(template)
                 print(f"✅ Using template: {template}")
             else:
-                prs = Presentation()
+                # Check for default template 'PPT.pptx'
+                default_template = "PPT.pptx"
+                if os.path.exists(default_template):
+                    prs = Presentation(default_template)
+                    print(f"✅ Using default template: {default_template}")
+                else:
+                    prs = Presentation()
+                    print("ℹ️ No template provided and default 'PPT.pptx' not found. Using blank theme.")
 
             for slide_data in slides:
                 # Choose layout (1 = Title and Content)
