@@ -129,6 +129,20 @@ def block_replace(self, path, start_line, end_line, new_content):
 **Module:** `FastSearch`
 *   **Logic:** Checks `config.toml`. If `engine="Tavily"`, it uses the Tavily API to get clean, parsed text (no HTML clutter). If Tavily fails or is unconfigured, it gracefully falls back to DuckDuckGo.
 
+**Pseudocode:**
+```python
+def search(self, query):
+    if config.search.engine == "Tavily":
+        try:
+            # Premium Path: Get AI-optimized results
+            return tavily_client.search(query, search_depth="advanced")
+        except Exception:
+            log.warn("Tavily failed, falling back to DDG")
+            
+    # Fallback Path: Standard web scraping
+    return ddg_client.text(query)
+```
+
 ### D. Resilient Browser Automation (`app/tool/browser_use_tool.py`)
 **Problem:** The `browser-use` library API changes frequently, breaking the agent.
 **Vazal Solution:** A custom wrapper that stabilizes the interface.
