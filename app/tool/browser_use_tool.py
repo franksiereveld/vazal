@@ -266,6 +266,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                     try:
                         xpath = element_node.xpath
+                        page = await context.get_current_page() # Ensure page is defined
                         await page.locator(f"xpath={xpath}").click()
                         return ToolResult(output=f"Clicked element {index}")
                     except Exception as e:
@@ -282,6 +283,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     
                     try:
                         xpath = element_node.xpath
+                        page = await context.get_current_page() # Ensure page is defined
                         await page.locator(f"xpath={xpath}").fill(text)
                         return ToolResult(output=f"Input text '{text}' into element {index}")
                     except Exception as e:
