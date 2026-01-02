@@ -13,10 +13,10 @@ from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.memory.lessons import LessonManager
 
-class Manus(ToolCallAgent):
+class Vazal(ToolCallAgent):
     """A versatile general-purpose agent with support for both local and MCP tools."""
 
-    name: str = "Manus"
+    name: str = "Vazal"
     description: str = "A versatile agent that can solve various tasks using multiple tools including MCP-based tools"
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
@@ -46,12 +46,12 @@ class Manus(ToolCallAgent):
     _initialized: bool = False
 
     @model_validator(mode="after")
-    def initialize_helper(self) -> "Manus":
+    def initialize_helper(self) -> "Vazal":
         self.browser_context_helper = BrowserContextHelper(self)
         return self
 
     @classmethod
-    async def create(cls, **kwargs) -> "Manus":
+    async def create(cls, **kwargs) -> "Vazal":
         instance = cls(**kwargs)
         await instance.initialize_mcp_servers()
         instance._initialized = True

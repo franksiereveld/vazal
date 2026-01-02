@@ -13,17 +13,17 @@ from a2a.types import (
 from a2a.utils import completed_task, new_artifact
 from a2a.utils.errors import ServerError
 
-from .agent import A2AManus
+from .agent import A2AVazal
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class ManusExecutor(AgentExecutor):
+class VazalExecutor(AgentExecutor):
     """Currency Conversion AgentExecutor Example."""
 
-    def __init__(self, agent_factory: Callable[[], Awaitable[A2AManus]]):
+    def __init__(self, agent_factory: Callable[[], Awaitable[A2AVazal]]):
         self.agent_factory = agent_factory
 
     async def execute(

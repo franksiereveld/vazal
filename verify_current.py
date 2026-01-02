@@ -8,13 +8,13 @@ sys.path.append(os.getcwd())
 def test_imports():
     print("Testing imports...")
     try:
-        from app.agent.manus import Manus
-        print("✅ Successfully imported Manus agent")
+        from app.agent.manus import Vazal
+        print("✅ Successfully imported Vazal agent")
     except ImportError as e:
-        print(f"❌ Failed to import Manus agent: {e}")
+        print(f"❌ Failed to import Vazal agent: {e}")
         return False
     except Exception as e:
-        print(f"❌ Unexpected error importing Manus agent: {e}")
+        print(f"❌ Unexpected error importing Vazal agent: {e}")
         return False
 
     try:
@@ -29,16 +29,16 @@ def test_imports():
 async def test_agent_init():
     print("\nTesting Agent Initialization...")
     try:
-        from app.agent.manus import Manus
-        agent = Manus()
-        print("✅ Successfully initialized Manus agent")
+        from app.agent.manus import Vazal
+        agent = Vazal()
+        print("✅ Successfully initialized Vazal agent")
         return True
     except Exception as e:
-        print(f"❌ Failed to initialize Manus agent: {e}")
+        print(f"❌ Failed to initialize Vazal agent: {e}")
         return False
 
 async def main():
-    print("=== OpenManus Verification Test ===\n")
+    print("=== Vazal Verification Test ===\n")
     
     if not test_imports():
         print("\n❌ Import tests failed. Aborting.")

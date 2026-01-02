@@ -5,13 +5,13 @@ import os
 # Add current directory to sys.path
 sys.path.append(os.getcwd())
 
-from app.agent.manus import Manus
+from app.agent.manus import Vazal
 from app.logger import logger
 
 async def main():
     print("=== Starting Agent Test: Find Restaurants in Zurich ===")
     
-    agent = Manus()
+    agent = Vazal()
     
     # Simulate a user request
     prompt = "Find 3 popular restaurants in Zurich and list their names."
@@ -21,7 +21,7 @@ async def main():
     
     try:
         # We manually inject the prompt into the agent's memory or run loop
-        # Since Manus.run() is an interactive loop, we might need to call think() directly
+        # Since Vazal.run() is an interactive loop, we might need to call think() directly
         # or use a method that accepts a single prompt.
         
         # Looking at manus.py, it inherits from ToolCallAgent.

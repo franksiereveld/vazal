@@ -6,7 +6,7 @@ import time
 # Add current directory to sys.path
 sys.path.append(os.getcwd())
 
-from app.agent.manus import Vazal as Manus
+from app.agent.manus import Vazal
 from app.schema import Message
 from app.logger import logger
 
@@ -18,7 +18,7 @@ async def run_test(name, prompt, max_steps=10):
     print(f"\n\n{'='*20} TEST: {name} {'='*20}")
     print(f"Prompt: {prompt}")
     
-    agent = Manus()
+    agent = Vazal()
     agent.memory.add_message(Message(role="user", content=prompt))
     
     start_time = time.time()
@@ -35,7 +35,7 @@ async def run_test(name, prompt, max_steps=10):
                     print(f"🛠️ Tool Call: {tc.function.name}({tc.function.arguments})")
                     
                     # Execute the tool (since think() only decides, act() executes)
-                    # But Manus.run() loop does both. Here we are manually stepping.
+                    # But Vazal.run() loop does both. Here we are manually stepping.
                     # We need to call act() to get the result.
                     result = await agent.act()
                     print(f"✅ Result: {result[:200]}..." if len(result) > 200 else f"✅ Result: {result}")
