@@ -15,7 +15,7 @@ graph TD
     subgraph "The Brain (app/agent)"
         Agent --> Planner[Planner / LLM]
         Agent --> Memory[Memory Manager]
-        Agent --> Lessons[Lesson Manager (Enhanced)]
+        Agent --> Lessons["Lesson Manager (Enhanced)"]
     end
     
     subgraph "The Hands (app/tool)"
