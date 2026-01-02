@@ -71,7 +71,8 @@ class FastSearch(BaseTool):
     async def _search_ddg(self, query: str, max_results: int) -> str:
         try:
             from duckduckgo_search import DDGS
-            results = DDGS().text(query, max_results=max_results)
+            # Force region to 'us-en' to ensure English results
+            results = DDGS().text(query, region="us-en", max_results=max_results)
             if not results:
                 return "No results found."
 
