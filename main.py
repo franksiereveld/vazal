@@ -48,6 +48,18 @@ async def classify_intent(agent, prompt):
     # Wrap string in Message object
     return await agent.llm.ask([Message.user_message(classifier_prompt)])
 
+async def generate_plan(agent, prompt):
+    """
+    Generates a high-level plan for the user to review before execution.
+    """
+    plan_prompt = (
+        f"You are an expert planner. The user wants to: '{prompt}'\n"
+        "Create a concise, high-level plan (3-5 bullet points) to achieve this.\n"
+        "Focus on the key steps (e.g., 'Search for X', 'Download images', 'Create PPT').\n"
+        "Do NOT include internal details like 'call tool X'. Keep it user-friendly."
+    )
+    return await agent.llm.ask([Message.user_message(plan_prompt)])
+
 async def suggest_and_save_lesson(agent, prompt, final_answer):
     """
     Analyzes the interaction to see if a lesson should be learned.
@@ -143,6 +155,22 @@ async def main():
                 continue
 
             # If we are here, it's a TASK
+            
+            # --- PLAN & REFINE LOOP ---
+            while True:
+                print("\n🤔 Thinking of a plan...")
+                plan = await generate_plan(agent, prompt)
+                print(f"\n📋 Proposed Plan:\n{plan}\n")
+                
+                refinement = input("👉 Press Enter to start, or type a follow-up to refine the plan: ")
+                
+                if not refinement.strip():
+                    break # User accepted the plan
+                
+                # User wants to refine
+                prompt += f" (Refinement: {refinement})"
+                print("🔄 Updating plan...")
+            
             print(f"\n🚀 Starting Task: \"{prompt}\"")
 
             # 2. Run Agent (NO SPINNER - Safe for Input)
