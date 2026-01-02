@@ -20,6 +20,7 @@ Command = Literal[
     "view",
     "create",
     "str_replace",
+    "block_replace",
     "insert",
     "undo_edit",
 ]
@@ -45,6 +46,11 @@ Notes for using the `str_replace` command:
 * The `old_str` parameter should match EXACTLY one or more consecutive lines from the original file. Be mindful of whitespaces!
 * If the `old_str` parameter is not unique in the file, the replacement will not be performed. Make sure to include enough context in `old_str` to make it unique
 * The `new_str` parameter should contain the edited lines that should replace the `old_str`
+
+Notes for using the `block_replace` command:
+* Replaces a specific range of lines with new content.
+* `start_line` and `end_line` are 1-indexed and inclusive.
+* This is safer than `str_replace` when you know the line numbers.
 """
 
 
@@ -66,8 +72,8 @@ class StrReplaceEditor(BaseTool):
         "type": "object",
         "properties": {
             "command": {
-                "description": "The commands to run. Allowed options are: `view`, `create`, `str_replace`, `insert`, `undo_edit`.",
-                "enum": ["view", "create", "str_replace", "insert", "undo_edit"],
+                "description": "The commands to run. Allowed options are: `view`, `create`, `str_replace`, `block_replace`, `insert`, `undo_edit`.",
+                "enum": ["view", "create", "str_replace", "block_replace", "insert", "undo_edit"],
                 "type": "string",
             },
             "path": {
@@ -83,11 +89,19 @@ class StrReplaceEditor(BaseTool):
                 "type": "string",
             },
             "new_str": {
-                "description": "Optional parameter of `str_replace` command containing the new string (if not given, no string will be added). Required parameter of `insert` command containing the string to insert.",
+                "description": "Optional parameter of `str_replace` command containing the new string (if not given, no string will be added). Required parameter of `insert` and `block_replace` command containing the string to insert.",
                 "type": "string",
             },
             "insert_line": {
                 "description": "Required parameter of `insert` command. The `new_str` will be inserted AFTER the line `insert_line` of `path`.",
+                "type": "integer",
+            },
+            "start_line": {
+                "description": "Required parameter of `block_replace` command. The starting line number (1-indexed) to replace.",
+                "type": "integer",
+            },
+            "end_line": {
+                "description": "Required parameter of `block_replace` command. The ending line number (1-indexed) to replace.",
                 "type": "integer",
             },
             "view_range": {
@@ -121,6 +135,8 @@ class StrReplaceEditor(BaseTool):
         old_str: str | None = None,
         new_str: str | None = None,
         insert_line: int | None = None,
+        start_line: int | None = None,
+        end_line: int | None = None,
         **kwargs: Any,
     ) -> str:
         """Execute a file operation command."""
@@ -145,6 +161,14 @@ class StrReplaceEditor(BaseTool):
                     "Parameter `old_str` is required for command: str_replace"
                 )
             result = await self.str_replace(path, old_str, new_str, operator)
+        elif command == "block_replace":
+            if start_line is None or end_line is None:
+                raise ToolError(
+                    "Parameters `start_line` and `end_line` are required for command: block_replace"
+                )
+            if new_str is None:
+                raise ToolError("Parameter `new_str` is required for command: block_replace")
+            result = await self.block_replace(path, start_line, end_line, new_str, operator)
         elif command == "insert":
             if insert_line is None:
                 raise ToolError(
@@ -262,7 +286,7 @@ class StrReplaceEditor(BaseTool):
             if final_line > n_lines_file:
                 raise ToolError(
                     f"Invalid `view_range`: {view_range}. Its second element `{final_line}` should be "
-                    f"smaller than the number of lines in the file: `{n_lines_file}`"
+                    f"within the range of lines of the file: {[1, n_lines_file]}"
                 )
             if final_line != -1 and final_line < init_line:
                 raise ToolError(
@@ -334,6 +358,64 @@ class StrReplaceEditor(BaseTool):
             snippet, f"a snippet of {path}", start_line + 1
         )
         success_msg += "Review the changes and make sure they are as expected. Edit the file again if necessary."
+
+        return CLIResult(output=success_msg)
+
+    async def block_replace(
+        self,
+        path: PathLike,
+        start_line: int,
+        end_line: int,
+        new_str: str,
+        operator: FileOperator = None,
+    ) -> CLIResult:
+        """Replace a block of lines with new content."""
+        # Read and prepare content
+        file_text = (await operator.read_file(path)).expandtabs()
+        new_str = new_str.expandtabs()
+        file_text_lines = file_text.split("\n")
+        n_lines_file = len(file_text_lines)
+
+        # Validate lines
+        if start_line < 1 or start_line > n_lines_file:
+            raise ToolError(
+                f"Invalid `start_line`: {start_line}. Must be between 1 and {n_lines_file}."
+            )
+        if end_line < start_line or end_line > n_lines_file:
+            raise ToolError(
+                f"Invalid `end_line`: {end_line}. Must be between {start_line} and {n_lines_file}."
+            )
+
+        # Perform replacement
+        # Note: start_line is 1-indexed, so index is start_line-1
+        # end_line is inclusive, so slice goes up to end_line
+        new_str_lines = new_str.split("\n")
+        new_file_text_lines = (
+            file_text_lines[: start_line - 1]
+            + new_str_lines
+            + file_text_lines[end_line:]
+        )
+
+        # Create a snippet for preview
+        snippet_start = max(0, start_line - 1 - SNIPPET_LINES)
+        snippet_end = min(len(new_file_text_lines), start_line - 1 + len(new_str_lines) + SNIPPET_LINES)
+        snippet_lines = new_file_text_lines[snippet_start:snippet_end]
+
+        # Join lines and write to file
+        new_file_text = "\n".join(new_file_text_lines)
+        snippet = "\n".join(snippet_lines)
+
+        await operator.write_file(path, new_file_text)
+        self._file_history[path].append(file_text)
+
+        # Prepare success message
+        success_msg = f"The file {path} has been edited (lines {start_line}-{end_line} replaced). "
+        success_msg += self._make_output(
+            snippet,
+            "a snippet of the edited file",
+            snippet_start + 1,
+        )
+        success_msg += "Review the changes and make sure they are as expected."
 
         return CLIResult(output=success_msg)
 
