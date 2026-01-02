@@ -182,11 +182,23 @@ class PPTCreatorTool(BaseTool):
                     # Check if local file exists (after potential download)
                     if image_path and os.path.exists(image_path):
                         try:
-                            # Add image to the right side (adjust positioning as needed)
-                            left = Inches(5.5)
-                            top = Inches(2)
-                            height = Inches(3.5)
-                            slide.shapes.add_picture(image_path, left, top, height=height)
+                            # Try to find a picture placeholder in the layout
+                            pic_placeholder = None
+                            for shape in slide.placeholders:
+                                # PP_PLACEHOLDER.PICTURE is 18
+                                if shape.placeholder_format.type == 18: 
+                                    pic_placeholder = shape
+                                    break
+                            
+                            if pic_placeholder:
+                                # Insert into the placeholder (respects template layout)
+                                pic_placeholder.insert_picture(image_path)
+                            else:
+                                # Fallback: Add image to the right side
+                                left = Inches(5.5)
+                                top = Inches(2)
+                                height = Inches(3.5)
+                                slide.shapes.add_picture(image_path, left, top, height=height)
                         except Exception as e:
                             print(f"⚠️ Error adding image {image_path}: {e}")
                     else:
