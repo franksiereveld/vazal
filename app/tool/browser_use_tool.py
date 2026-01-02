@@ -94,6 +94,11 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 "type": "string",
                 "description": "Extraction goal for 'extract_content' action",
             },
+            "extraction_type": {
+                "type": "string",
+                "enum": ["summary", "raw", "images"],
+                "description": "Type of extraction: 'summary' (default, uses LLM), 'raw' (returns raw text), or 'images' (returns image URLs).",
+            },
             "keys": {
                 "type": "string",
                 "description": "Keys to send for 'send_keys' action",
@@ -119,7 +124,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             "go_back": [],
             "web_search": ["query"],
             "wait": ["seconds"],
-            "extract_content": ["goal"],
+            "extract_content": ["goal"], # extraction_type is optional
             "get_state": [],
         },
     }
@@ -212,6 +217,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
         tab_id: Optional[int] = None,
         query: Optional[str] = None,
         goal: Optional[str] = None,
+        extraction_type: Optional[str] = "summary", # Default to summary
         keys: Optional[str] = None,
         seconds: Optional[int] = None,
         **kwargs,
@@ -322,21 +328,11 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "extract_content":
                     page = await context.get_current_page()
-                    content = await page.inner_text("body")
-                    current_url = page.url.lower()
                     
-                    # --- SMART EXTRACTION LOGIC ---
+                    # --- EXPLICIT EXTRACTION LOGIC ---
                     
-                    # 1. BYPASS FOR SEARCH ENGINES
-                    search_engines = ["google.com", "duckduckgo.com", "bing.com", "yahoo.com"]
-                    if any(se in current_url for se in search_engines):
-                        if len(content) > 5000:
-                            content = content[:5000] + "\n... [TRUNCATED due to length]"
-                        return ToolResult(output=f"Search Results Page (Raw Content):\n{content}")
-
-                    # 2. IMAGE EXTRACTION MODE
-                    # If the goal mentions "image", "photo", "picture", we extract <img> tags directly.
-                    if goal and any(kw in goal.lower() for kw in ["image", "photo", "picture", "img"]):
+                    # 1. IMAGES
+                    if extraction_type == "images":
                         try:
                             # Execute JS to get all image sources
                             images = await page.evaluate("""
@@ -355,33 +351,43 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         except Exception as e:
                             return ToolResult(error=f"Failed to extract images: {e}")
 
-                    # 3. NORMAL PAGE: Use Smart Extraction
-                    safe_content = content[:100000] 
-                    
-                    if goal:
-                        extraction_prompt = (
-                            f"You are a helpful assistant. Extract information relevant to the following goal from the text below.\n"
-                            f"Goal: {goal}\n\n"
-                            f"Text Content:\n{safe_content}\n\n"
-                            f"If the text does not contain relevant information, say 'No relevant information found'. "
-                            f"Keep the summary concise (under 500 words)."
-                        )
-                        try:
-                            summary = await self.llm.ask([Message.user_message(extraction_prompt)])
-                            
-                            # --- FALLBACK LOGIC ---
-                            if "No relevant information found" in summary:
-                                fallback_content = content[:2000]
-                                return ToolResult(output=f"⚠️ Smart extraction found no info. Returning raw content head:\n\n{fallback_content}...")
-                                
-                            return ToolResult(output=f"✅ Extracted Summary for '{goal}':\n\n{summary}")
-                        except Exception as e:
-                            fallback_content = content[:2000]
-                            return ToolResult(error=f"Smart extraction failed: {e}. Returning raw content head:\n\n{fallback_content}...")
-                    else:
+                    # 2. RAW TEXT (for Search Engines or Debugging)
+                    elif extraction_type == "raw":
+                        content = await page.inner_text("body")
                         if len(content) > 5000:
                             content = content[:5000] + "\n... [TRUNCATED due to length]"
-                        return ToolResult(output=f"Extracted content (No goal provided):\n{content}")
+                        return ToolResult(output=f"Raw Content:\n{content}")
+
+                    # 3. SUMMARY (Default - Smart Extraction)
+                    else:
+                        content = await page.inner_text("body")
+                        safe_content = content[:100000] 
+                        
+                        if goal:
+                            extraction_prompt = (
+                                f"You are a helpful assistant. Extract information relevant to the following goal from the text below.\n"
+                                f"Goal: {goal}\n\n"
+                                f"Text Content:\n{safe_content}\n\n"
+                                f"If the text does not contain relevant information, say 'No relevant information found'. "
+                                f"Keep the summary concise (under 500 words)."
+                            )
+                            try:
+                                summary = await self.llm.ask([Message.user_message(extraction_prompt)])
+                                
+                                # Fallback if summary fails
+                                if "No relevant information found" in summary:
+                                    fallback_content = content[:2000]
+                                    return ToolResult(output=f"⚠️ Smart extraction found no info. Returning raw content head:\n\n{fallback_content}...")
+                                    
+                                return ToolResult(output=f"✅ Extracted Summary for '{goal}':\n\n{summary}")
+                            except Exception as e:
+                                fallback_content = content[:2000]
+                                return ToolResult(error=f"Smart extraction failed: {e}. Returning raw content head:\n\n{fallback_content}...")
+                        else:
+                            # No goal provided, fallback to raw
+                            if len(content) > 5000:
+                                content = content[:5000] + "\n... [TRUNCATED due to length]"
+                            return ToolResult(output=f"Extracted content (No goal provided):\n{content}")
 
                 elif action == "switch_tab":
                     if tab_id is None:
