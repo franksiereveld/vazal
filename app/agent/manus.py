@@ -13,6 +13,7 @@ from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.block_editor import BlockEditor
+from app.tool.ppt_creator import PPTCreator
 from app.tool.fast_search import FastSearch
 from app.memory.lessons import LessonManager
 
@@ -31,6 +32,8 @@ SYSTEM_PROMPT = (
     "   - ACTION: 'go_to_url' -> Visit specific pages.\n"
     "4. 'block_editor': POWERFUL editor. Use 'read' to see line numbers, then 'insert'/'delete'/'replace'.\n"
     "   - PREFER 'block_editor' over 'str_replace_editor' for code edits.\n"
+    "5. 'ppt_creator': Create PowerPoint presentations (.pptx).\n"
+    "   - Input: filename and a list of slides (title, content).\n"
     "5. 'terminate': Call this when DONE. \n"
     "   - IMPORTANT: This tool takes NO arguments (or only 'status').\n"
     "   - BEFORE calling terminate, you MUST print/say the final answer to the user.\n\n"
@@ -66,6 +69,7 @@ class Vazal(ToolCallAgent):
             FastSearch(),
             BrowserUseTool(),
             BlockEditor(),
+            PPTCreator(),
             StrReplaceEditor(),
             AskHuman(),
             Terminate(),
