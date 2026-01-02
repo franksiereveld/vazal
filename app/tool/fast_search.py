@@ -48,9 +48,9 @@ class FastSearch(BaseTool):
     async def _search_tavily(self, query: str, max_results: int) -> str:
         try:
             from tavily import TavilyClient
-            api_key = os.environ.get("TAVILY_API_KEY")
+            api_key = config.search_config.api_key if config.search_config and config.search_config.api_key else os.environ.get("TAVILY_API_KEY")
             if not api_key:
-                raise ValueError("TAVILY_API_KEY not found in environment")
+                raise ValueError("TAVILY_API_KEY not found in config or environment")
             
             client = TavilyClient(api_key=api_key)
             # Tavily python client is synchronous, but fast enough. 

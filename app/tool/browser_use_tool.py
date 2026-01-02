@@ -139,36 +139,47 @@ class BrowserUseTool(BaseTool, Generic[Context]):
     async def _ensure_browser_initialized(self) -> BrowserSession:
         """Ensure browser session is initialized."""
         if self.browser is None:
-            # New API: Pass arguments directly to BrowserSession
-            browser_kwargs = {"headless": False, "disable_security": True}
+            try:
+                # New API: Pass arguments directly to BrowserSession
+                # IMPORTANT: headless=True by default for stability in many envs, unless config overrides
+                browser_kwargs = {"headless": True, "disable_security": True}
 
-            if config.browser_config:
-                from browser_use.browser.profile import ProxySettings
+                if config.browser_config:
+                    from browser_use.browser.profile import ProxySettings
 
-                # handle proxy settings.
-                if config.browser_config.proxy and config.browser_config.proxy.server:
-                    browser_kwargs["proxy"] = ProxySettings(
-                        server=config.browser_config.proxy.server,
-                        username=config.browser_config.proxy.username,
-                        password=config.browser_config.proxy.password,
-                    )
+                    # handle proxy settings.
+                    if config.browser_config.proxy and config.browser_config.proxy.server:
+                        browser_kwargs["proxy"] = ProxySettings(
+                            server=config.browser_config.proxy.server,
+                            username=config.browser_config.proxy.username,
+                            password=config.browser_config.proxy.password,
+                        )
 
-                browser_attrs = [
-                    "headless",
-                    "disable_security",
-                    "extra_chromium_args",
-                    "chrome_instance_path",
-                    "wss_url",
-                    "cdp_url",
-                ]
+                    browser_attrs = [
+                        "headless",
+                        "disable_security",
+                        "extra_chromium_args",
+                        "chrome_instance_path",
+                        "wss_url",
+                        "cdp_url",
+                    ]
 
-                for attr in browser_attrs:
-                    value = getattr(config.browser_config, attr, None)
-                    if value is not None:
-                        if not isinstance(value, list) or value:
-                            browser_kwargs[attr] = value
+                    for attr in browser_attrs:
+                        value = getattr(config.browser_config, attr, None)
+                        if value is not None:
+                            if not isinstance(value, list) or value:
+                                browser_kwargs[attr] = value
 
-            self.browser = BrowserSession(**browser_kwargs)
+                from browser_use.browser.browser import Browser, BrowserConfig
+                
+                # Initialize Browser first (required by newer browser-use versions)
+                browser = Browser(config=BrowserConfig(**browser_kwargs))
+                
+                # Create session from browser
+                self.browser = await BrowserSession(browser=browser).create()
+                
+            except Exception as e:
+                raise RuntimeError(f"Failed to initialize browser: {e}")
 
         return self.browser
 
@@ -308,4 +319,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     return ToolResult(error=f"Unknown action: {action}")
 
             except Exception as e:
-                return ToolResult(error=f"Browser action failed: {str(e)}")
+                error_msg = str(e)
+                if "browser not connected" in error_msg.lower():
+                    # Reset browser to force re-initialization on next call
+                    self.browser = None
+                    return ToolResult(error="Browser connection lost. Will retry initialization on next attempt.")
+                return ToolResult(error=f"Browser action failed: {error_msg}")
