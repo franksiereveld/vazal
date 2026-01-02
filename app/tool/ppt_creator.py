@@ -1,5 +1,7 @@
 import os
 import requests
+import io
+from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from app.tool.base import BaseTool, ToolResult
@@ -70,12 +72,26 @@ class PPTCreatorTool(BaseTool):
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
             }
-            response = requests.get(url, headers=headers, stream=True, timeout=10)
+            response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             
+            # Check Content-Type
+            content_type = response.headers.get('Content-Type', '').lower()
+            if 'image' not in content_type:
+                print(f"⚠️ Skipping non-image URL {url} (Content-Type: {content_type})")
+                return None
+
+            # Verify image integrity
+            try:
+                image_data = response.content
+                img = Image.open(io.BytesIO(image_data))
+                img.verify()
+            except Exception as e:
+                print(f"⚠️ Invalid image data from {url}: {e}")
+                return None
+            
             with open(local_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
+                f.write(image_data)
             
             print(f"⬇️ Downloaded image: {url} -> {local_path}")
             return local_path
