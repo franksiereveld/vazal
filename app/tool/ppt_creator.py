@@ -1,23 +1,28 @@
 import os
-from typing import List, Dict, Any
+import requests
+from pptx import Presentation
+from pptx.util import Inches, Pt
 from app.tool.base import BaseTool, ToolResult
 
-class PPTCreator(BaseTool):
+class PPTCreatorTool(BaseTool):
     name: str = "ppt_creator"
     description: str = """
-    Create a PowerPoint presentation (.pptx) from a list of slides.
-    Each slide can have a title, content (bullet points), and an optional layout.
+    Creates a PowerPoint presentation with text and images.
+    * Supports using a custom template (.pptx or .potx).
+    * Can add multiple slides with titles, bullet points, and images.
+    * AUTOMATICALLY downloads images if you provide a URL (http/https).
+    * Saves downloaded images to 'input/' and the final PPT to 'output/'.
     """
     parameters: dict = {
         "type": "object",
         "properties": {
             "filename": {
                 "type": "string",
-                "description": "The output filename (e.g., 'presentation.pptx')."
+                "description": "The name of the output file (e.g., 'presentation.pptx'). Will be saved in 'output/' folder.",
             },
             "template": {
                 "type": "string",
-                "description": "Optional path to a .pptx file to use as a template/theme."
+                "description": "Optional path to a template file (.pptx or .potx).",
             },
             "slides": {
                 "type": "array",
@@ -28,174 +33,114 @@ class PPTCreator(BaseTool):
                         "content": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "description": "List of bullet points or paragraphs."
+                            "description": "List of bullet points",
                         },
-                        "images": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "path": {"type": "string"},
-                                    "left": {"type": "number", "description": "In inches"},
-                                    "top": {"type": "number", "description": "In inches"},
-                                    "width": {"type": "number", "description": "In inches"}
-                                },
-                                "required": ["path"]
-                            },
-                            "description": "List of images to add."
+                        "image_path": {
+                            "type": "string",
+                            "description": "Local path OR URL (http/https) to an image.",
                         },
-                        "table": {
-                            "type": "object",
-                            "properties": {
-                                "rows": {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "array",
-                                        "items": {"type": "string"}
-                                    }
-                                },
-                                "left": {"type": "number", "default": 1.0},
-                                "top": {"type": "number", "default": 2.0},
-                                "width": {"type": "number", "default": 8.0},
-                                "height": {"type": "number", "default": 3.0}
-                            },
-                            "description": "Table data (list of rows)."
-                        },
-                        "layout": {
-                            "type": "integer",
-                            "description": "Slide layout index (0=Title, 1=Title+Content, etc.). Default is 1.",
-                            "default": 1
-                        }
                     },
-                    "required": ["title", "content"]
+                    "required": ["title", "content"],
                 },
-                "description": "List of slide objects."
-            }
+            },
         },
-        "required": ["filename", "slides"]
+        "required": ["filename", "slides"],
     }
 
-    async def execute(self, filename: str, slides: List[Dict[str, Any]], template: str = None) -> ToolResult:
+    def _download_image(self, url: str) -> str:
+        """
+        Downloads an image from a URL to the 'input/' folder.
+        Returns the local file path.
+        """
         try:
-            from pptx import Presentation
-            from pptx.util import Inches
-        except ImportError:
-            return ToolResult(error="python-pptx is not installed. Please install it first.")
+            # Create input directory if it doesn't exist
+            input_dir = "input"
+            if not os.path.exists(input_dir):
+                os.makedirs(input_dir)
 
-        # --- ENFORCEMENT: Template Usage ---
-        if template:
-            if not os.path.exists(template):
-                return ToolResult(error=f"❌ Template file not found: {template}. Please ensure the template exists before creating the presentation.")
-            prs = Presentation(template)
-            print(f"✅ Using template: {template}")
-        else:
-            prs = Presentation()
-            print("ℹ️ No template provided, using default blank theme.")
-
-        for slide_data in slides:
-            layout_idx = slide_data.get("layout", 1)
-            # Ensure layout index is valid (0-8 usually)
-            if layout_idx >= len(prs.slide_layouts):
-                layout_idx = 1
+            # Extract filename from URL or generate a random one
+            filename = url.split("/")[-1].split("?")[0]
+            if not filename or "." not in filename:
+                import uuid
+                filename = f"image_{uuid.uuid4().hex[:8]}.jpg"
             
-            slide_layout = prs.slide_layouts[layout_idx]
-            slide = prs.slides.add_slide(slide_layout)
+            local_path = os.path.join(input_dir, filename)
 
-            # Set Title
-            title = slide.shapes.title
-            if title:
-                title.text = slide_data.get("title", "")
+            # Download the file
+            response = requests.get(url, stream=True, timeout=10)
+            response.raise_for_status()
+            
+            with open(local_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            
+            print(f"⬇️ Downloaded image: {url} -> {local_path}")
+            return local_path
+        except Exception as e:
+            print(f"⚠️ Failed to download image {url}: {e}")
+            return None
 
-            # Set Content (Body)
-            content_text = slide_data.get("content", [])
-            if content_text:
-                body_shape = None
-                
-                # 1. Try standard body placeholder (idx 1)
-                for shape in slide.placeholders:
-                    if shape.placeholder_format.idx == 1:
-                        body_shape = shape
-                        break
-                
-                # 2. If not found, try ANY placeholder that is a body/object type
-                if not body_shape:
-                    for shape in slide.placeholders:
-                        # 2=Body, 7=Object
-                        if shape.placeholder_format.type in [2, 7]: 
-                            body_shape = shape
-                            break
-                            
-                # 3. Fallback: Try any shape that has a text_frame and isn't the title
-                if not body_shape:
-                    for shape in slide.shapes:
-                        if shape.has_text_frame and shape != title:
-                            body_shape = shape
-                            break
+    async def execute(self, filename: str, slides: list, template: str = None, **kwargs) -> ToolResult:
+        try:
+            # Ensure output directory exists
+            output_dir = "output"
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            
+            # Prepend output directory to filename
+            output_path = os.path.join(output_dir, filename)
 
-                if body_shape and hasattr(body_shape, "text_frame"):
+            # Load template or create new
+            if template:
+                if not os.path.exists(template):
+                    return ToolResult(error=f"Template file not found: {template}")
+                prs = Presentation(template)
+                print(f"✅ Using template: {template}")
+            else:
+                prs = Presentation()
+
+            for slide_data in slides:
+                # Choose layout (1 = Title and Content)
+                slide_layout = prs.slide_layouts[1] if len(prs.slide_layouts) > 1 else prs.slide_layouts[0]
+                slide = prs.slides.add_slide(slide_layout)
+
+                # Set Title
+                if slide.shapes.title:
+                    slide.shapes.title.text = slide_data.get("title", "Untitled")
+
+                # Set Content (Bullet Points)
+                if slide.placeholders and len(slide.placeholders) > 1:
+                    body_shape = slide.placeholders[1]
                     tf = body_shape.text_frame
-                    tf.clear() # Clear default text
+                    tf.text = ""  # Clear default text
                     
-                    for i, point in enumerate(content_text):
-                        p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
+                    for point in slide_data.get("content", []):
+                        p = tf.add_paragraph()
                         p.text = point
-                        p.level = 0 # Top level bullet
+                        p.level = 0
 
-            # Add Images
-            images = slide_data.get("images", [])
-            for img in images:
-                path = img.get("path")
-                
-                # --- ENFORCEMENT: Image Validation ---
-                if not path:
-                    continue
-                    
-                # Check for placeholder patterns
-                if "path/to/" in path or "placeholder" in path.lower() or not os.path.exists(path):
-                    print(f"⚠️ WARNING: Skipping invalid or missing image path: {path}")
-                    # We could raise an error here to force the agent to retry, 
-                    # but for now, let's log it loudly. 
-                    # If we want to be strict:
-                    # return ToolResult(error=f"❌ Invalid image path: {path}. Images MUST be downloaded locally before creating the presentation.")
-                    continue
+                # Add Image
+                image_path = slide_data.get("image_path")
+                if image_path:
+                    # Check if it's a URL
+                    if image_path.startswith("http://") or image_path.startswith("https://"):
+                        image_path = self._download_image(image_path)
 
-                if path and os.path.exists(path):
-                    try:
-                        left = Inches(img.get("left", 1))
-                        top = Inches(img.get("top", 1))
-                        width = Inches(img.get("width", 5))
-                        slide.shapes.add_picture(path, left, top, width=width)
-                    except Exception as e:
-                        print(f"❌ Error adding image {path}: {e}")
+                    # Check if local file exists (after potential download)
+                    if image_path and os.path.exists(image_path):
+                        try:
+                            # Add image to the right side (adjust positioning as needed)
+                            left = Inches(5.5)
+                            top = Inches(2)
+                            height = Inches(3.5)
+                            slide.shapes.add_picture(image_path, left, top, height=height)
+                        except Exception as e:
+                            print(f"⚠️ Error adding image {image_path}: {e}")
+                    else:
+                        print(f"⚠️ WARNING: Skipping invalid or missing image path: {image_path}")
 
-            # Add Table
-            table_data = slide_data.get("table")
-            if table_data and "rows" in table_data:
-                rows = table_data["rows"]
-                if rows:
-                    num_rows = len(rows)
-                    num_cols = len(rows[0])
-                    left = Inches(table_data.get("left", 1.0))
-                    top = Inches(table_data.get("top", 2.0))
-                    width = Inches(table_data.get("width", 8.0))
-                    height = Inches(table_data.get("height", 3.0))
-                    
-                    graphic_frame = slide.shapes.add_table(num_rows, num_cols, left, top, width, height)
-                    table = graphic_frame.table
-                    
-                    for r, row_data in enumerate(rows):
-                        for c, cell_text in enumerate(row_data):
-                            if c < num_cols:
-                                table.cell(r, c).text = str(cell_text)
+            prs.save(output_path)
+            return ToolResult(output=f"Presentation saved successfully to: {output_path}")
 
-        # Save
-        if not filename.endswith(".pptx"):
-            filename += ".pptx"
-            
-        # Ensure directory exists
-        os.makedirs(os.path.dirname(os.path.abspath(filename)) or ".", exist_ok=True)
-        
-        prs.save(filename)
-        
-        abs_path = os.path.abspath(filename)
-        return ToolResult(output=f"✅ Presentation saved to: {abs_path}")
+        except Exception as e:
+            return ToolResult(error=f"Failed to create PPT: {e}")
