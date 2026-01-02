@@ -277,7 +277,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 elif action == "send_keys":
                     if not keys:
                         return ToolResult(error="Keys are required")
-                    page = await session.get_current_page()
+                    page = await context.get_current_page()
                     await page.keyboard.press(keys)
                     return ToolResult(output=f"Sent keys '{keys}'")
 
@@ -288,24 +288,26 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     return ToolResult(output=f"Waited {seconds} seconds")
 
                 elif action == "extract_content":
-                    page = await session.get_current_page()
+                    page = await context.get_current_page()
                     content = await page.content()
                     return ToolResult(output=f"Extracted content (length: {len(content)})")
 
                 elif action == "switch_tab":
                     if tab_id is None:
                         return ToolResult(error="Tab ID is required")
-                    # session.switch_tab(tab_id) ?
+                    # context.switch_tab(tab_id) ?
                     return ToolResult(output=f"Switched to tab {tab_id}")
 
                 elif action == "open_tab":
                     if not url:
                         return ToolResult(error="URL is required")
-                    await session.new_page(url)
+                    page = await context.new_page()
+                    await page.goto(url)
                     return ToolResult(output=f"Opened new tab with {url}")
 
                 elif action == "close_tab":
-                    await session.close_page()
+                    page = await context.get_current_page()
+                    await page.close()
                     return ToolResult(output="Closed current tab")
 
                 else:
