@@ -17,6 +17,8 @@ logger.remove()
 logger.add(sys.stderr, level="ERROR")
 # 2. File: Show EVERYTHING (Debug)
 logger.add("agent.log", level="INFO", rotation="10 MB", mode="w")
+# 3. Error File: Detailed error traces
+logger.add("error.log", level="ERROR", rotation="10 MB", mode="w", backtrace=True, diagnose=True)
 # ---------------------
 
 async def classify_intent(agent, prompt):
@@ -112,6 +114,7 @@ async def main():
         logger.remove()
         logger.add(sys.stderr, level="INFO")
         logger.add("agent.log", level="DEBUG", rotation="10 MB", mode="w")
+        logger.add("error.log", level="ERROR", rotation="10 MB", mode="w", backtrace=True, diagnose=True)
         print("🔧 Verbose mode enabled")
 
     # Initialize Agent
@@ -128,9 +131,15 @@ async def main():
     # Interactive Loop
     try:
         while True:
-            prompt = input("\n👉 Enter your prompt: ")
+            try:
+                prompt = input("\n👉 Enter your prompt: ")
+            except EOFError:
+                # Handle Ctrl+D
+                print("\n👋 Goodbye!")
+                break
 
-            if prompt.lower() in ['exit', 'quit']:
+            if prompt.lower() in ['exit', 'quit', 'q']:
+                print("\n👋 Goodbye!")
                 break
 
             if not prompt.strip():

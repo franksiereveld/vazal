@@ -334,6 +334,10 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     # 1. IMAGES
                     if extraction_type == "images":
                         try:
+                            # LAZY LOADING: Scroll to bottom to trigger image loads
+                            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                            await asyncio.sleep(2) # Wait for images to load
+                            
                             # Execute JS to get all image sources
                             images = await page.evaluate("""
                                 () => {
