@@ -1,5 +1,5 @@
 from app.tool import BaseTool
-import sys
+
 
 class AskHuman(BaseTool):
     """Add a tool to ask human for help."""
@@ -18,8 +18,4 @@ class AskHuman(BaseTool):
     }
 
     async def execute(self, inquire: str) -> str:
-        # Print newlines to clear the spinner area
-        print("\n\n")
-        # Flush stdout to ensure the prompt appears immediately
-        sys.stdout.flush()
         return input(f"""Bot: {inquire}\n\nYou: """).strip()

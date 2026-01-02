@@ -16,8 +16,6 @@ from app.tool.search import (
     GoogleSearchEngine,
     WebSearchEngine,
 )
-# IMPORT TAVILY HERE
-from app.tool.search.tavily_search import TavilySearchEngine
 from app.tool.search.base import SearchItem
 
 
@@ -112,6 +110,13 @@ class WebContentFetcher:
     async def fetch_content(url: str, timeout: int = 10) -> Optional[str]:
         """
         Fetch and extract the main content from a webpage.
+
+        Args:
+            url: The URL to fetch content from
+            timeout: Request timeout in seconds
+
+        Returns:
+            Extracted text content or None if fetching fails
         """
         headers = {
             "WebSearch": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -185,9 +190,7 @@ class WebSearch(BaseTool):
         },
         "required": ["query"],
     }
-    # ADD TAVILY TO THE ENGINES LIST
     _search_engine: dict[str, WebSearchEngine] = {
-        "tavily": TavilySearchEngine(),
         "google": GoogleSearchEngine(),
         "baidu": BaiduSearchEngine(),
         "duckduckgo": DuckDuckGoSearchEngine(),
@@ -205,6 +208,16 @@ class WebSearch(BaseTool):
     ) -> SearchResponse:
         """
         Execute a Web search and return detailed search results.
+
+        Args:
+            query: The search query to submit to the search engine
+            num_results: The number of search results to return (default: 5)
+            lang: Language code for search results (default from config)
+            country: Country code for search results (default from config)
+            fetch_content: Whether to fetch content from result pages (default: False)
+
+        Returns:
+            A structured response containing search results and metadata
         """
         # Get settings from config
         retry_delay = (
@@ -346,9 +359,6 @@ class WebSearch(BaseTool):
 
     def _get_engine_order(self) -> List[str]:
         """Determines the order in which to try search engines."""
-        # FORCE TAVILY AS THE FIRST CHOICE
-        engine_order = ["tavily"]
-
         preferred = (
             getattr(config.search_config, "engine", "google").lower()
             if config.search_config
@@ -361,11 +371,8 @@ class WebSearch(BaseTool):
             else []
         )
 
-        # Add preferred engine if not already in list
-        if preferred in self._search_engine and preferred not in engine_order:
-            engine_order.append(preferred)
-
-        # Add fallbacks
+        # Start with preferred engine, then fallbacks, then remaining engines
+        engine_order = [preferred] if preferred in self._search_engine else []
         engine_order.extend(
             [
                 fb
@@ -373,8 +380,6 @@ class WebSearch(BaseTool):
                 if fb in self._search_engine and fb not in engine_order
             ]
         )
-
-        # Add remaining engines
         engine_order.extend([e for e in self._search_engine if e not in engine_order])
 
         return engine_order
@@ -390,16 +395,6 @@ class WebSearch(BaseTool):
         search_params: Dict[str, Any],
     ) -> List[SearchItem]:
         """Execute search with the given engine and parameters."""
-        # Check if the engine has an async search method (like Tavily)
-        if hasattr(engine, "search") and asyncio.iscoroutinefunction(engine.search):
-            return await engine.search(
-                query,
-                num_results=num_results,
-                lang=search_params.get("lang"),
-                country=search_params.get("country"),
-            )
-
-        # Fallback to synchronous perform_search in a thread pool
         return await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: list(

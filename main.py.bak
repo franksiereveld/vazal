@@ -1,0 +1,117 @@
+import argparse
+import asyncio
+import sys
+import os
+import subprocess
+from loguru import logger
+
+from app.agent.manus import Manus
+
+# --- LOGGING SETUP ---
+logger.remove()
+logger.add(sys.stderr, level="ERROR")
+logger.add("agent_activity.log", level="INFO", rotation="10 MB", mode="w")
+
+def open_activity_monitor():
+    """
+    Automatically opens a new Terminal window on macOS to tail the log file.
+    """
+    log_file = os.path.join(os.getcwd(), "agent_activity.log")
+    
+    # Ensure the file exists so tail doesn't complain
+    if not os.path.exists(log_file):
+        with open(log_file, 'w') as f:
+            f.write("--- OpenManus Activity Log ---\n")
+
+    print("🖥️  Launching Activity Monitor window...")
+    
+    # AppleScript to open Terminal and run tail -f
+    script = f'''
+    tell application "Terminal"
+        do script "tail -f {log_file}"
+        activate
+    end tell
+    '''
+    
+    try:
+        subprocess.run(["osascript", "-e", script], check=True)
+    except Exception as e:
+        print(f"⚠️  Could not auto-launch terminal: {e}")
+        print(f"   (You can manually run: tail -f agent_activity.log)")
+
+async def classify_intent(agent, user_prompt):
+    system_prompt = (
+        "Analyze the input. Respond in exactly this format:\n"
+        "TYPE: [CHAT or TASK]\n"
+        "RESPONSE: [Your answer or the plan]\n\n"
+        "Rules:\n"
+        "- If it is a greeting, question, or creative writing (poem/joke) that needs NO external tools: TYPE: CHAT\n"
+        "- If it requires browsing, coding, file saving, or complex research: TYPE: TASK"
+    )
+    response = await agent.llm.ask(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+    )
+    return response
+
+async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prompt", type=str, required=False)
+    args = parser.parse_args()
+
+    # --- AUTO-LAUNCH THE MONITOR ---
+    # Only launch if we are in interactive mode (no prompt arg)
+    if not args.prompt:
+        open_activity_monitor()
+
+    agent = await Manus.create()
+
+    print("\n✨ OpenManus Mission Control Ready. (Type 'exit' to quit)\n")
+    
+    try:
+        while True:
+            if args.prompt:
+                prompt = args.prompt
+                args.prompt = None
+            else:
+                prompt = input("You: ")
+
+            if not prompt.strip(): continue
+            if prompt.lower() in ['exit', 'quit']: break
+
+            logger.info(f"USER PROMPT: {prompt}")
+
+            classification = await classify_intent(agent, prompt)
+            
+            msg_type = "CHAT"
+            msg_content = classification
+            
+            if "TYPE: TASK" in classification:
+                msg_type = "TASK"
+                parts = classification.split("RESPONSE:")
+                if len(parts) > 1: msg_content = parts[1].strip()
+            elif "TYPE: CHAT" in classification:
+                msg_type = "CHAT"
+                parts = classification.split("RESPONSE:")
+                if len(parts) > 1: msg_content = parts[1].strip()
+
+            if msg_type == "CHAT":
+                print(f"Manus: {msg_content}\n")
+                logger.info(f"MANUS CHAT: {msg_content}")
+            
+            elif msg_type == "TASK":
+                print(f"Manus: 🚀 Starting Task: {msg_content}")
+                print("(Check the other window for progress...)\n")
+                
+                await agent.run(prompt)
+                print("✅ Task Completed.\n")
+
+    except KeyboardInterrupt:
+        print("\nGoodbye!")
+    finally:
+        await agent.cleanup()
+
+if __name__ == "__main__":
+    asyncio.run(main())

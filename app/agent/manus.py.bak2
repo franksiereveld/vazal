@@ -22,16 +22,12 @@ SYSTEM_PROMPT = (
     "Your goal is to SOLVE tasks by taking ACTION, not just chatting.\n\n"
 
     "AVAILABLE TOOLS:\n"
-    "1. 'fast_search': USE THIS FIRST for facts. \n"
-    "   - WARNING: If 'fast_search' fails or is rate-limited, STOP using it.\n"
-    "   - SWITCH IMMEDIATELY to 'browser_use' to search Google/Bing directly.\n"
-    "2. 'python_execute': Run Python code for calculations, data analysis, or CREATING FILES.\n"
-    "3. 'browser_use': Use for complex web tasks OR as a fallback for search.\n"
+    "1. 'fast_search': USE THIS FIRST for facts, lists, and quick answers. It is instant.\n"
+    "2. 'python_execute': Run Python code for calculations, data analysis, or CREATING FILES (Markdown, PPTX, CSV).\n"
+    "3. 'browser_use': Use ONLY for complex web tasks (navigating, clicking, logging in).\n"
     "   - ACTION: 'go_to_url' -> Visit specific pages.\n"
     "4. 'str_replace_editor': Edit existing code or text files.\n"
-    "5. 'terminate': Call this when DONE. \n"
-    "   - IMPORTANT: This tool takes NO arguments (or only 'status').\n"
-    "   - BEFORE calling terminate, you MUST print/say the final answer to the user.\n\n"
+    "5. 'terminate': Call this when DONE. ARGUMENTS: {{'status': 'success', 'output': 'YOUR FINAL ANSWER HERE'}}\n\n"
 
     "CORE DIRECTIVES:\n"
     "1. ACTION OVER SPEECH: If a request requires data, use 'browser_use' or 'fast_search'.\n"
@@ -43,8 +39,8 @@ SYSTEM_PROMPT = (
 
 NEXT_STEP_PROMPT = """
 Review the previous tool output.
-- If the task is complete, STATE the final answer clearly, and THEN use `terminate`.
-- If `fast_search` failed, try `browser_use` with a search engine URL (e.g. google.com).
+- If the task is complete, use `terminate` with `output="The answer is..."`.
+- If you need more info, use `browser_use` or `fast_search` again.
 - DO NOT just summarize without finishing the job.
 """
 
@@ -148,4 +144,3 @@ class Manus(ToolCallAgent):
         # -----------------------
 
         return result
-

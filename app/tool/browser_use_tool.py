@@ -253,19 +253,16 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                         return ToolResult(
                             error="Query is required for 'web_search' action"
                         )
-                    # Execute the web search and return results directly without browser navigation
-                    search_response = await self.web_search_tool.execute(
-                        query=query, fetch_content=True, num_results=1
-                    )
-                    # Navigate to the first search result
-                    first_search_result = search_response.results[0]
-                    url_to_navigate = first_search_result.url
+                    # Robust Fix: Just navigate to DuckDuckGo
+                    import urllib.parse
+                    encoded_query = urllib.parse.quote(query)
+                    search_url = f"https://duckduckgo.com/?q={encoded_query}"
 
-                    page = await context.get_current_page()
-                    await page.goto(url_to_navigate)
+                    page = await context.get_current_page( )
+                    await page.goto(search_url)
                     await page.wait_for_load_state()
+                    return ToolResult(output=f"Performed web search for '{query}' on DuckDuckGo")
 
-                    return search_response
 
                 # Element interaction actions
                 elif action == "click_element":
