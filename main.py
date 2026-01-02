@@ -37,7 +37,15 @@ async def classify_intent(agent, prompt):
 async def main():
     parser = argparse.ArgumentParser(description="Vazal AI Agent")
     parser.add_argument("--prompt", type=str, help="Initial prompt")
+    parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
     args = parser.parse_args()
+
+    # Configure Logging based on Verbose flag
+    if args.verbose:
+        logger.remove()
+        logger.add(sys.stderr, level="INFO")
+        logger.add("agent.log", level="DEBUG", rotation="10 MB", mode="w")
+        print("🔧 Verbose mode enabled")
 
     # Initialize Agent
     print("🤖 Vazal is waking up...")
