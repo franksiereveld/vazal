@@ -15,6 +15,10 @@ class PPTCreator(BaseTool):
                 "type": "string",
                 "description": "The output filename (e.g., 'presentation.pptx')."
             },
+            "template": {
+                "type": "string",
+                "description": "Optional path to a .pptx file to use as a template/theme."
+            },
             "slides": {
                 "type": "array",
                 "items": {
@@ -25,6 +29,37 @@ class PPTCreator(BaseTool):
                             "type": "array",
                             "items": {"type": "string"},
                             "description": "List of bullet points or paragraphs."
+                        },
+                        "images": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "path": {"type": "string"},
+                                    "left": {"type": "number", "description": "In inches"},
+                                    "top": {"type": "number", "description": "In inches"},
+                                    "width": {"type": "number", "description": "In inches"}
+                                },
+                                "required": ["path"]
+                            },
+                            "description": "List of images to add."
+                        },
+                        "table": {
+                            "type": "object",
+                            "properties": {
+                                "rows": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "array",
+                                        "items": {"type": "string"}
+                                    }
+                                },
+                                "left": {"type": "number", "default": 1.0},
+                                "top": {"type": "number", "default": 2.0},
+                                "width": {"type": "number", "default": 8.0},
+                                "height": {"type": "number", "default": 3.0}
+                            },
+                            "description": "Table data (list of rows)."
                         },
                         "layout": {
                             "type": "integer",
@@ -40,13 +75,17 @@ class PPTCreator(BaseTool):
         "required": ["filename", "slides"]
     }
 
-    async def execute(self, filename: str, slides: List[Dict[str, Any]]) -> ToolResult:
+    async def execute(self, filename: str, slides: List[Dict[str, Any]], template: str = None) -> ToolResult:
         try:
             from pptx import Presentation
+            from pptx.util import Inches
         except ImportError:
             return ToolResult(error="python-pptx is not installed. Please install it first.")
 
-        prs = Presentation()
+        if template and os.path.exists(template):
+            prs = Presentation(template)
+        else:
+            prs = Presentation()
 
         for slide_data in slides:
             layout_idx = slide_data.get("layout", 1)
@@ -65,13 +104,29 @@ class PPTCreator(BaseTool):
             # Set Content (Body)
             content_text = slide_data.get("content", [])
             if content_text:
-                # Find the body placeholder (usually index 1)
                 body_shape = None
+                
+                # 1. Try standard body placeholder (idx 1)
                 for shape in slide.placeholders:
                     if shape.placeholder_format.idx == 1:
                         body_shape = shape
                         break
                 
+                # 2. If not found, try ANY placeholder that is a body/object type
+                if not body_shape:
+                    for shape in slide.placeholders:
+                        # 2=Body, 7=Object
+                        if shape.placeholder_format.type in [2, 7]: 
+                            body_shape = shape
+                            break
+                            
+                # 3. Fallback: Try any shape that has a text_frame and isn't the title
+                if not body_shape:
+                    for shape in slide.shapes:
+                        if shape.has_text_frame and shape != title:
+                            body_shape = shape
+                            break
+
                 if body_shape and hasattr(body_shape, "text_frame"):
                     tf = body_shape.text_frame
                     tf.clear() # Clear default text
@@ -80,6 +135,36 @@ class PPTCreator(BaseTool):
                         p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
                         p.text = point
                         p.level = 0 # Top level bullet
+
+            # Add Images
+            images = slide_data.get("images", [])
+            for img in images:
+                path = img.get("path")
+                if path and os.path.exists(path):
+                    left = Inches(img.get("left", 1))
+                    top = Inches(img.get("top", 1))
+                    width = Inches(img.get("width", 5))
+                    slide.shapes.add_picture(path, left, top, width=width)
+
+            # Add Table
+            table_data = slide_data.get("table")
+            if table_data and "rows" in table_data:
+                rows = table_data["rows"]
+                if rows:
+                    num_rows = len(rows)
+                    num_cols = len(rows[0])
+                    left = Inches(table_data.get("left", 1.0))
+                    top = Inches(table_data.get("top", 2.0))
+                    width = Inches(table_data.get("width", 8.0))
+                    height = Inches(table_data.get("height", 3.0))
+                    
+                    graphic_frame = slide.shapes.add_table(num_rows, num_cols, left, top, width, height)
+                    table = graphic_frame.table
+                    
+                    for r, row_data in enumerate(rows):
+                        for c, cell_text in enumerate(row_data):
+                            if c < num_cols:
+                                table.cell(r, c).text = str(cell_text)
 
         # Save
         if not filename.endswith(".pptx"):
