@@ -115,6 +115,14 @@ async def main():
                         if msg.content:
                             final_answer = msg.content
                             break
+                
+                # Fallback: If final_answer is still default, look for the last tool output
+                if final_answer == "✅ Task Completed.":
+                    for msg in reversed(agent.memory.messages):
+                        if msg.role == "tool" and msg.content:
+                            # Found the last tool output (e.g. search results)
+                            final_answer = f"✅ Task Completed. Last Tool Output:\n\n{msg.content[:2000]}..." # Truncate if too long
+                            break
 
             print(f"\n🤖 Vazal: {final_answer}\n")
 
