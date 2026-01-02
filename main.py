@@ -151,7 +151,8 @@ async def main():
             reflection_prompt = (
                 f"Review this interaction:\n{context_summary}\n"
                 "Did the user provide a CORRECTION, PREFERENCE, or NEW CONSTRAINT in this follow-up? "
-                "Examples: 'I meant Italian food', 'Use Python 3.10', 'Don't use that tool'.\n"
+                "Look for keywords like 'again', 'missing', 'verbose', 'not', 'instead'.\n"
+                "Examples: 'I meant Italian food', 'Use Python 3.10', 'Don't use that tool', 'Pictures are missing'.\n"
                 "If yes, output ONLY the lesson text (e.g. 'User prefers Italian food'). "
                 "If no specific lesson, output 'NO'."
             )
