@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from app.agent.data_analysis import DataAnalysis
-from app.agent.manus import Vazal
+from app.agent.vazal import Vazal
 from app.config import config
 from app.flow.flow_factory import FlowFactory, FlowType
 from app.logger import logger

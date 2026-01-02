@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 def test_imports():
     print("Testing imports...")
     try:
-        from app.agent.manus import Vazal
+        from app.agent.vazal import Vazal
         print("✅ Successfully imported Vazal agent")
     except ImportError as e:
         print(f"❌ Failed to import Vazal agent: {e}")
@@ -29,7 +29,7 @@ def test_imports():
 async def test_agent_init():
     print("\nTesting Agent Initialization...")
     try:
-        from app.agent.manus import Vazal
+        from app.agent.vazal import Vazal
         agent = Vazal()
         print("✅ Successfully initialized Vazal agent")
         return True

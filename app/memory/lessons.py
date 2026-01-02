@@ -40,36 +40,44 @@ class LessonManager:
         print(f"✅ Lesson learned: {content}")
 
     def get_relevant_lessons(self, query: str = "") -> str:
-        """Returns relevant lessons based on the query context."""
+        """Returns relevant lessons based on the query context using keyword scoring."""
         if not self.lessons:
             return ""
         
-        relevant = []
-        query_lower = query.lower()
-        
+        if not query:
+            # Return up to 5 most recent lessons if no query
+            recent = [l["content"] for l in self.lessons[-5:]]
+            formatted = "\n".join([f"- {l}" for l in recent])
+            return f"\n\n## 🧠 RECENT LESSONS:\n{formatted}\n"
+
+        query_words = set(query.lower().split())
+        scored_lessons = []
+
         for lesson in self.lessons:
-            # Simple keyword matching
             content = lesson["content"].lower()
             tags = [t.lower() for t in lesson.get("tags", [])]
             
-            # If query is empty, return everything (or top N)
-            if not query:
-                relevant.append(lesson["content"])
-                continue
+            # Calculate score: +1 for each query word found in content or tags
+            score = 0
+            for word in query_words:
+                if len(word) < 3: continue # Skip stop words/short words
+                if word in content:
+                    score += 1
+                if any(word in t for t in tags):
+                    score += 2 # Tags are more important
 
-            # Check if any word in the query matches content or tags
-            # This is a basic heuristic; can be improved with embeddings later
-            if any(word in content for word in query_lower.split()) or \
-               any(word in tags for word in query_lower.split()):
-                relevant.append(lesson["content"])
-        
-        # Fallback: If no specific matches, show generic lessons
-        if not relevant and self.lessons:
-             # Return up to 5 most recent lessons as fallback
-             relevant = [l["content"] for l in self.lessons[-5:]]
+            if score > 0:
+                scored_lessons.append((score, lesson["content"]))
 
-        if not relevant:
-            return ""
+        # Sort by score descending
+        scored_lessons.sort(key=lambda x: x[0], reverse=True)
 
-        formatted = "\n".join([f"- {l}" for l in relevant])
+        # Take top 5
+        top_lessons = [l[1] for l in scored_lessons[:5]]
+
+        if not top_lessons:
+             # Fallback to recent if no matches
+             top_lessons = [l["content"] for l in self.lessons[-3:]]
+
+        formatted = "\n".join([f"- {l}" for l in top_lessons])
         return f"\n\n## 🧠 RELEVANT LESSONS:\n{formatted}\n"

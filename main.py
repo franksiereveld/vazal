@@ -7,7 +7,7 @@ import subprocess
 # from rich.status import Status
 from loguru import logger
 
-from app.agent.manus import Vazal
+from app.agent.vazal import Vazal
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message
 

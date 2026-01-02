@@ -2,7 +2,7 @@ from typing import Any, AsyncIterable, ClassVar, Dict, List, Literal
 
 from pydantic import BaseModel
 
-from app.agent.manus import Vazal
+from app.agent.vazal import Vazal
 
 
 class ResponseFormat(BaseModel):

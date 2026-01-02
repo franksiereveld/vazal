@@ -5,7 +5,7 @@ import os
 # Add current directory to sys.path
 sys.path.append(os.getcwd())
 
-from app.agent.manus import Vazal
+from app.agent.vazal import Vazal
 from app.logger import logger
 
 async def main():

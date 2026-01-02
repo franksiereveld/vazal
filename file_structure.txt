@@ -1,0 +1,205 @@
+.
+├── ARCHITECTURE.md
+├── CODE_OF_CONDUCT.md
+├── Dockerfile
+├── GETTING_STARTED.md
+├── LICENSE
+├── README.md
+├── README_ja.md
+├── README_ko.md
+├── README_zh.md
+├── VAZAL_SYSTEM_DESIGN.md
+├── app
+│   ├── __init__.py
+│   ├── agent
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── browser.py
+│   │   ├── data_analysis.py
+│   │   ├── manus.py
+│   │   ├── manus.py.bak
+│   │   ├── manus.py.bak2
+│   │   ├── mcp.py
+│   │   ├── react.py
+│   │   ├── sandbox_agent.py
+│   │   ├── swe.py
+│   │   └── toolcall.py
+│   ├── bedrock.py
+│   ├── config.py
+│   ├── daytona
+│   │   ├── README.md
+│   │   ├── sandbox.py
+│   │   └── tool_base.py
+│   ├── exceptions.py
+│   ├── flow
+│   │   ├── __init__.py
+│   │   ├── base.py
+│   │   ├── flow_factory.py
+│   │   └── planning.py
+│   ├── llm.py
+│   ├── logger.py
+│   ├── mcp
+│   │   ├── __init__.py
+│   │   └── server.py
+│   ├── memory
+│   │   ├── __init__.py
+│   │   └── lessons.py
+│   ├── prompt
+│   │   ├── __init__.py
+│   │   ├── browser.py
+│   │   ├── manus.py
+│   │   ├── mcp.py
+│   │   ├── planning.py
+│   │   ├── swe.py
+│   │   ├── toolcall.py
+│   │   └── visualization.py
+│   ├── sandbox
+│   │   ├── __init__.py
+│   │   ├── client.py
+│   │   └── core
+│   │       ├── exceptions.py
+│   │       ├── manager.py
+│   │       ├── sandbox.py
+│   │       └── terminal.py
+│   ├── schema.py
+│   ├── tool
+│   │   ├── __init__.py
+│   │   ├── ask_human.py
+│   │   ├── ask_human.py.bak
+│   │   ├── base.py
+│   │   ├── bash.py
+│   │   ├── browser_use_tool.py
+│   │   ├── chart_visualization
+│   │   │   ├── README.md
+│   │   │   ├── README_ja.md
+│   │   │   ├── README_ko.md
+│   │   │   ├── README_zh.md
+│   │   │   ├── __init__.py
+│   │   │   ├── chart_prepare.py
+│   │   │   ├── data_visualization.py
+│   │   │   ├── package-lock.json
+│   │   │   ├── package.json
+│   │   │   ├── python_execute.py
+│   │   │   ├── src
+│   │   │   │   └── chartVisualize.ts
+│   │   │   ├── test
+│   │   │   │   ├── chart_demo.py
+│   │   │   │   └── report_demo.py
+│   │   │   └── tsconfig.json
+│   │   ├── computer_use_tool.py
+│   │   ├── crawl4ai.py
+│   │   ├── create_chat_completion.py
+│   │   ├── fast_search.py
+│   │   ├── file_operators.py
+│   │   ├── mcp.py
+│   │   ├── planning.py
+│   │   ├── python_execute.py
+│   │   ├── sandbox
+│   │   │   ├── sb_browser_tool.py
+│   │   │   ├── sb_files_tool.py
+│   │   │   ├── sb_shell_tool.py
+│   │   │   └── sb_vision_tool.py
+│   │   ├── search
+│   │   │   ├── __init__.py
+│   │   │   ├── baidu_search.py
+│   │   │   ├── base.py
+│   │   │   ├── bing_search.py
+│   │   │   ├── duckduckgo_search.py
+│   │   │   ├── google_search.py
+│   │   │   └── tavily_search.py
+│   │   ├── str_replace_editor.py
+│   │   ├── terminate.py
+│   │   ├── tool_collection.py
+│   │   ├── web_search.py
+│   │   └── web_search.py.bak
+│   └── utils
+│       ├── __init__.py
+│       ├── files_utils.py
+│       └── logger.py
+├── assets
+│   ├── community_group.png
+│   └── logo.jpg
+├── config
+│   ├── config.example-daytona.toml
+│   ├── config.example-model-anthropic.toml
+│   ├── config.example-model-azure.toml
+│   ├── config.example-model-google.toml
+│   ├── config.example-model-jiekouai.toml
+│   ├── config.example-model-ollama.toml
+│   ├── config.example-model-ppio.toml
+│   ├── config.example.toml
+│   ├── config.toml
+│   └── mcp.example.json
+├── examples
+│   ├── benchmarks
+│   │   └── __init__.py
+│   └── use_case
+│       ├── japan-travel-plan
+│       │   ├── japan_travel_guide_instructions.txt
+│       │   ├── japan_travel_handbook.html
+│       │   ├── japan_travel_handbook_mobile.html
+│       │   └── japan_travel_handbook_print.html
+│       ├── pictures
+│       │   ├── japan-travel-plan-1.png
+│       │   └── japan-travel-plan-2.png
+│       └── readme.md
+├── file_structure.txt
+├── fix_manus.py
+├── lessons.json
+├── logs
+│   ├── 20260102122448.log
+│   ├── 20260102122511.log
+│   ├── 20260102122836.log
+│   ├── 20260102122927.log
+│   ├── 20260102123144.log
+│   ├── 20260102123224.log
+│   ├── 20260102123407.log
+│   ├── 20260102123448.log
+│   ├── 20260102123503.log
+│   ├── 20260102124231.log
+│   ├── 20260102124316.log
+│   ├── 20260102131410.log
+│   ├── 20260102131453.log
+│   ├── 20260102131532.log
+│   ├── 20260102131922.log
+│   ├── 20260102132016.log
+│   ├── 20260102132313.log
+│   ├── 20260102132445.log
+│   ├── 20260102132721.log
+│   ├── 20260102132835.log
+│   └── 20260102135933.log
+├── main.py
+├── main.py.bak
+├── protocol
+│   └── a2a
+│       ├── __init__.py
+│       └── app
+│           ├── README.md
+│           ├── README_zh.md
+│           ├── __init__.py
+│           ├── agent.py
+│           ├── agent_executor.py
+│           └── main.py
+├── requirements.txt
+├── run_flow.py
+├── run_mcp.py
+├── run_mcp_server.py
+├── sandbox_main.py
+├── setup.py
+├── test_agent.py
+├── test_block.txt
+├── test_features.py
+├── test_gauntlet.py
+├── test_tavily.py
+├── tests
+│   └── sandbox
+│       ├── test_client.py
+│       ├── test_docker_terminal.py
+│       ├── test_sandbox.py
+│       └── test_sandbox_manager.py
+├── verify_current.py
+└── workspace
+    ├── example.txt
+    └── vazal_test.txt
+
+30 directories, 172 files

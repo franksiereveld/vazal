@@ -6,7 +6,7 @@ import time
 # Add current directory to sys.path
 sys.path.append(os.getcwd())
 
-from app.agent.manus import Vazal
+from app.agent.vazal import Vazal
 from app.schema import Message
 from app.logger import logger
 
