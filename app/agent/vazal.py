@@ -14,6 +14,7 @@ from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.block_editor import BlockEditor
 from app.tool.ppt_creator import PPTCreatorTool  # Updated Import
+from app.tool.generate_image import GenerateImageTool
 from app.tool.fast_search import FastSearch
 from app.memory.lessons import LessonManager
 
@@ -42,7 +43,10 @@ SYSTEM_PROMPT = (
     "     - Use 'browser_use' with extraction_type='images' to find valid URLs.\n"
     "     - CRITICAL: DO NOT use 'source.unsplash.com' or fake URLs. They WILL FAIL.\n"
     "     - YOU MUST SEARCH for images first using 'browser_use' or 'fast_search'.\n"
-    "6. 'terminate': Call this when DONE. \n"
+    "6. 'generate_image': Generate custom images using DALL-E 3.\n"
+    "   - Use this if you cannot find good images via search.\n"
+    "   - Input: prompt (detailed description).\n"
+    "7. 'terminate': Call this when DONE. \n"
     "   - IMPORTANT: This tool takes NO arguments (or only 'status').\n"
     "   - BEFORE calling terminate, you MUST print/say the final answer to the user.\n\n"
 
@@ -78,6 +82,7 @@ class Vazal(ToolCallAgent):
             BrowserUseTool(),
             BlockEditor(),
             PPTCreatorTool(),  # Updated Instantiation
+            GenerateImageTool(),
             StrReplaceEditor(),
             AskHuman(),
             Terminate(),
