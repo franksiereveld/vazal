@@ -18,10 +18,10 @@ from app.tool.sandbox.sb_shell_tool import SandboxShellTool
 from app.tool.sandbox.sb_vision_tool import SandboxVisionTool
 
 
-class SandboxManus(ToolCallAgent):
+class SandboxVazal(ToolCallAgent):
     """A versatile general-purpose agent with support for both local and MCP tools."""
 
-    name: str = "SandboxManus"
+    name: str = "SandboxVazal"
     description: str = "A versatile agent that can solve various tasks using multiple sandbox-tools including MCP-based tools"
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
@@ -55,14 +55,14 @@ class SandboxManus(ToolCallAgent):
     sandbox_link: Optional[dict[str, dict[str, str]]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
-    def initialize_helper(self) -> "SandboxManus":
+    def initialize_helper(self) -> "SandboxVazal":
         """Initialize basic components synchronously."""
         self.browser_context_helper = BrowserContextHelper(self)
         return self
 
     @classmethod
-    async def create(cls, **kwargs) -> "SandboxManus":
-        """Factory method to create and properly initialize a Manus instance."""
+    async def create(cls, **kwargs) -> "SandboxVazal":
+        """Factory method to create and properly initialize a Vazal instance."""
         instance = cls(**kwargs)
         await instance.initialize_mcp_servers()
         await instance.initialize_sandbox_tools()
@@ -186,7 +186,7 @@ class SandboxManus(ToolCallAgent):
             raise e
 
     async def cleanup(self):
-        """Clean up Manus agent resources."""
+        """Clean up Vazal agent resources."""
         if self.browser_context_helper:
             await self.browser_context_helper.cleanup_browser()
         # Disconnect from all MCP servers only if we were initialized

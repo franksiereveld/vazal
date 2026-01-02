@@ -5,9 +5,9 @@ class ToolError(Exception):
         self.message = message
 
 
-class OpenManusError(Exception):
-    """Base exception for all OpenManus errors"""
+class VazalError(Exception):
+    """Base exception for all Vazal errors"""
 
 
-class TokenLimitExceeded(OpenManusError):
+class TokenLimitExceeded(VazalError):
     """Exception raised when the token limit is exceeded"""

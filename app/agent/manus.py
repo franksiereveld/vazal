@@ -18,7 +18,7 @@ from app.memory.lessons import LessonManager
 # --- PROMPTS DEFINED GLOBALLY ---
 # NOTE: We use double braces {{ }} for JSON examples so Python doesn't confuse them with variables.
 SYSTEM_PROMPT = (
-    "You are Manus, an autonomous AI agent. "
+    "You are Vazal, an autonomous AI agent. "
     "Your goal is to SOLVE tasks by taking ACTION, not just chatting.\n\n"
 
     "AVAILABLE TOOLS:\n"
@@ -48,10 +48,10 @@ Review the previous tool output.
 - DO NOT just summarize without finishing the job.
 """
 
-class Manus(ToolCallAgent):
+class Vazal(ToolCallAgent):
     """A versatile general-purpose agent that uses tools to solve tasks."""
 
-    name: str = "Manus"
+    name: str = "Vazal"
     description: str = "A versatile agent that can use tools to solve various tasks."
 
     system_prompt: str = SYSTEM_PROMPT.format(directory=config.workspace_root)
@@ -76,7 +76,7 @@ class Manus(ToolCallAgent):
     _initialized: bool = False
 
     @model_validator(mode="after")
-    def initialize_helper(self) -> "Manus":
+    def initialize_helper(self) -> "Vazal":
         """Initialize basic components synchronously."""
         self.browser_context_helper = BrowserContextHelper(self)
         return self
