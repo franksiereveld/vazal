@@ -269,8 +269,8 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     state = await context.get_state()
                     element_node = state.selector_map.get(index)
                     if not element_node:
-                         return ToolResult(error=f"Element with index {index} not found in current state")
-
+                        return ToolResult(error=f"Element with index {index} not found")
+                    
                     try:
                         xpath = element_node.xpath
                         page = await context.get_current_page() # Ensure page is defined
@@ -374,14 +374,14 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             try:
                                 summary = await self.llm.ask([Message.user_message(extraction_prompt)])
                                 
-                                # Fallback if summary fails
-                                if "No relevant information found" in summary:
-                                    fallback_content = content[:2000]
+                                # Fallback if summary fails or is suspiciously short
+                                if "no relevant information" in summary.lower() or len(summary) < 50:
+                                    fallback_content = content[:5000] # Increased fallback size
                                     return ToolResult(output=f"⚠️ Smart extraction found no info. Returning raw content head:\n\n{fallback_content}...")
                                     
                                 return ToolResult(output=f"✅ Extracted Summary for '{goal}':\n\n{summary}")
                             except Exception as e:
-                                fallback_content = content[:2000]
+                                fallback_content = content[:5000]
                                 return ToolResult(error=f"Smart extraction failed: {e}. Returning raw content head:\n\n{fallback_content}...")
                         else:
                             # No goal provided, fallback to raw
