@@ -342,8 +342,9 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                             images = await page.evaluate("""
                                 () => {
                                     return Array.from(document.images)
-                                        .map(img => img.src)
-                                        .filter(src => src.startsWith('http') && (src.endsWith('.jpg') || src.endsWith('.png') || src.endsWith('.jpeg') || src.endsWith('.webp')))
+                                        .filter(img => img.width > 100 && img.height > 100) // Filter out small icons
+                                        .map(img => img.getAttribute('data-src') || img.src) // Prefer data-src for lazy loaded images
+                                        .filter(src => src && src.startsWith('http')) // Must be a valid URL
                                         .slice(0, 20); // Limit to top 20 images
                                 }
                             """)
