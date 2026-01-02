@@ -328,16 +328,34 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     # --- SMART EXTRACTION LOGIC ---
                     
                     # 1. BYPASS FOR SEARCH ENGINES
-                    # If we are on a search results page, the "content" is just a list of links.
-                    # The summarizer often thinks this is "no info". We should return raw text
-                    # so the agent can see the links and click them.
                     search_engines = ["google.com", "duckduckgo.com", "bing.com", "yahoo.com"]
                     if any(se in current_url for se in search_engines):
                         if len(content) > 5000:
                             content = content[:5000] + "\n... [TRUNCATED due to length]"
                         return ToolResult(output=f"Search Results Page (Raw Content):\n{content}")
 
-                    # 2. NORMAL PAGE: Use Smart Extraction
+                    # 2. IMAGE EXTRACTION MODE
+                    # If the goal mentions "image", "photo", "picture", we extract <img> tags directly.
+                    if goal and any(kw in goal.lower() for kw in ["image", "photo", "picture", "img"]):
+                        try:
+                            # Execute JS to get all image sources
+                            images = await page.evaluate("""
+                                () => {
+                                    return Array.from(document.images)
+                                        .map(img => img.src)
+                                        .filter(src => src.startsWith('http') && (src.endsWith('.jpg') || src.endsWith('.png') || src.endsWith('.jpeg') || src.endsWith('.webp')))
+                                        .slice(0, 20); // Limit to top 20 images
+                                }
+                            """)
+                            
+                            if images:
+                                return ToolResult(output=f"✅ Found {len(images)} images:\n" + "\n".join(images))
+                            else:
+                                return ToolResult(output="⚠️ No direct image URLs found on this page.")
+                        except Exception as e:
+                            return ToolResult(error=f"Failed to extract images: {e}")
+
+                    # 3. NORMAL PAGE: Use Smart Extraction
                     safe_content = content[:100000] 
                     
                     if goal:
