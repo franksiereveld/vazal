@@ -13,7 +13,7 @@ from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.block_editor import BlockEditor
-from app.tool.ppt_creator import PPTCreator
+from app.tool.ppt_creator import PPTCreatorTool  # Updated Import
 from app.tool.fast_search import FastSearch
 from app.memory.lessons import LessonManager
 
@@ -38,9 +38,8 @@ SYSTEM_PROMPT = (
     "     - DO NOT use generic placeholders like 'Overview of X'.\n"
     "     - DO provide actual facts, figures, names, and descriptions in the bullet points.\n"
     "     - If you don't have the details, SEARCH for them first.\n"
-    "   - IMAGES: You MUST download images locally before adding them to slides.\n"
-    "     - NEVER use fake paths like 'path/to/image.jpg'.\n"
-    "     - Use 'browser_use' or 'python_execute' to download images to the workspace first.\n"
+    "   - IMAGES: You can provide a URL (http/https) directly, and the tool will download it.\n"
+    "     - Use 'browser_use' with extraction_type='images' to find valid URLs.\n"
     "6. 'terminate': Call this when DONE. \n"
     "   - IMPORTANT: This tool takes NO arguments (or only 'status').\n"
     "   - BEFORE calling terminate, you MUST print/say the final answer to the user.\n\n"
@@ -76,7 +75,7 @@ class Vazal(ToolCallAgent):
             FastSearch(),
             BrowserUseTool(),
             BlockEditor(),
-            PPTCreator(),
+            PPTCreatorTool(),  # Updated Instantiation
             StrReplaceEditor(),
             AskHuman(),
             Terminate(),
@@ -162,4 +161,3 @@ class Vazal(ToolCallAgent):
         # -----------------------
 
         return result
-
