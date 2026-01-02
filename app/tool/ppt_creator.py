@@ -82,10 +82,15 @@ class PPTCreator(BaseTool):
         except ImportError:
             return ToolResult(error="python-pptx is not installed. Please install it first.")
 
-        if template and os.path.exists(template):
+        # --- ENFORCEMENT: Template Usage ---
+        if template:
+            if not os.path.exists(template):
+                return ToolResult(error=f"❌ Template file not found: {template}. Please ensure the template exists before creating the presentation.")
             prs = Presentation(template)
+            print(f"✅ Using template: {template}")
         else:
             prs = Presentation()
+            print("ℹ️ No template provided, using default blank theme.")
 
         for slide_data in slides:
             layout_idx = slide_data.get("layout", 1)
@@ -140,11 +145,28 @@ class PPTCreator(BaseTool):
             images = slide_data.get("images", [])
             for img in images:
                 path = img.get("path")
+                
+                # --- ENFORCEMENT: Image Validation ---
+                if not path:
+                    continue
+                    
+                # Check for placeholder patterns
+                if "path/to/" in path or "placeholder" in path.lower() or not os.path.exists(path):
+                    print(f"⚠️ WARNING: Skipping invalid or missing image path: {path}")
+                    # We could raise an error here to force the agent to retry, 
+                    # but for now, let's log it loudly. 
+                    # If we want to be strict:
+                    # return ToolResult(error=f"❌ Invalid image path: {path}. Images MUST be downloaded locally before creating the presentation.")
+                    continue
+
                 if path and os.path.exists(path):
-                    left = Inches(img.get("left", 1))
-                    top = Inches(img.get("top", 1))
-                    width = Inches(img.get("width", 5))
-                    slide.shapes.add_picture(path, left, top, width=width)
+                    try:
+                        left = Inches(img.get("left", 1))
+                        top = Inches(img.get("top", 1))
+                        width = Inches(img.get("width", 5))
+                        slide.shapes.add_picture(path, left, top, width=width)
+                    except Exception as e:
+                        print(f"❌ Error adding image {path}: {e}")
 
             # Add Table
             table_data = slide_data.get("table")

@@ -61,6 +61,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     "switch_tab",
                     "open_tab",
                     "close_tab",
+                    "get_state", # Added explicit state retrieval
                 ],
                 "description": "The browser action to perform",
             },
@@ -118,6 +119,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
             "web_search": ["query"],
             "wait": ["seconds"],
             "extract_content": ["goal"],
+            "get_state": [],
         },
     }
 
@@ -181,6 +183,22 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
         return self.browser_context
 
+    # --- NEW METHOD: Expose state to the agent ---
+    async def get_current_state(self):
+        """
+        Returns the current browser state (URL, title, DOM snapshot).
+        This is what the agent 'sees'.
+        """
+        if not self.browser_context:
+            return "Browser not initialized."
+        
+        try:
+            state = await self.browser_context.get_state()
+            return state
+        except Exception as e:
+            return f"Error getting state: {e}"
+    # ---------------------------------------------
+
     async def execute(
         self,
         action: str,
@@ -239,23 +257,51 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     if index is None:
                         return ToolResult(error="Index is required")
                     
-                    if self.dom_service is None:
-                         page = await context.get_current_page()
-                         self.dom_service = DomService(page)
+                    # In browser-use 0.1.40, we might need to use the context's action methods
+                    # But if we want to use DomService directly:
+                    page = await context.get_current_page()
+                    # Re-initialize DomService if needed or use context's internal one if available
+                    # For now, let's try to use the context's high level 'click' if possible, 
+                    # or rely on the agent's understanding of the DOM state.
                     
-                    await self.dom_service.click_element(index)
-                    return ToolResult(output=f"Clicked element {index}")
+                    # Assuming the agent sees the DOM state with indices, we need to map index to element.
+                    # The 'browser-use' library handles this state internally.
+                    # We need to call the appropriate method on the context or controller.
+                    
+                    # If we look at how browser-use works, it usually takes an action model.
+                    # Here we are manually bridging.
+                    
+                    # Let's try to use the DOM service from the state
+                    state = await context.get_state()
+                    element_node = state.selector_map.get(index)
+                    if not element_node:
+                         return ToolResult(error=f"Element with index {index} not found in current state")
+
+                    # We can use the xpath or handle from the element_node to click
+                    # But browser-use's `_click_element` logic is complex.
+                    # A simpler way for this tool wrapper might be to use playwright directly via the xpath
+                    try:
+                        xpath = element_node.xpath
+                        await page.locator(f"xpath={xpath}").click()
+                        return ToolResult(output=f"Clicked element {index}")
+                    except Exception as e:
+                        return ToolResult(error=f"Failed to click element {index}: {e}")
 
                 elif action == "input_text":
                     if index is None or text is None:
                         return ToolResult(error="Index and text are required")
                     
-                    if self.dom_service is None:
-                         page = await context.get_current_page()
-                         self.dom_service = DomService(page)
-                         
-                    await self.dom_service.type_text(index, text)
-                    return ToolResult(output=f"Input text '{text}' into element {index}")
+                    state = await context.get_state()
+                    element_node = state.selector_map.get(index)
+                    if not element_node:
+                         return ToolResult(error=f"Element with index {index} not found")
+                    
+                    try:
+                        xpath = element_node.xpath
+                        await page.locator(f"xpath={xpath}").fill(text)
+                        return ToolResult(output=f"Input text '{text}' into element {index}")
+                    except Exception as e:
+                        return ToolResult(error=f"Failed to input text: {e}")
 
                 elif action == "scroll_down":
                     amount = scroll_amount if scroll_amount else 500
@@ -289,8 +335,10 @@ class BrowserUseTool(BaseTool, Generic[Context]):
 
                 elif action == "extract_content":
                     page = await context.get_current_page()
-                    content = await page.content()
-                    return ToolResult(output=f"Extracted content (length: {len(content)})")
+                    # Better extraction: Get the full text or specific goal-oriented content
+                    # For now, let's return the text content to avoid massive HTML dumps
+                    content = await page.inner_text("body")
+                    return ToolResult(output=f"Extracted content:\n{content[:5000]}...") # Limit size
 
                 elif action == "switch_tab":
                     if tab_id is None:
@@ -309,6 +357,10 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                     page = await context.get_current_page()
                     await page.close()
                     return ToolResult(output="Closed current tab")
+                
+                elif action == "get_state":
+                    state = await self.get_current_state()
+                    return ToolResult(output=str(state))
 
                 else:
                     return ToolResult(error=f"Unknown action: {action}")
