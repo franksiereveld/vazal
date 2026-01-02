@@ -82,23 +82,31 @@ async def main():
             # 3. Extract & Print Final Answer
             final_answer = "✅ Task Completed."
 
+            # Look backwards through memory to find the last meaningful assistant message
             if agent.memory.messages:
-                last_msg = agent.memory.messages[-1]
+                # Iterate backwards
+                for msg in reversed(agent.memory.messages):
+                    if msg.role == "assistant":
+                        # 1. Check if it was a terminate call with output
+                        if msg.tool_calls:
+                            for tc in msg.tool_calls:
+                                if tc.function.name == "terminate":
+                                    import json
+                                    try:
+                                        args = json.loads(tc.function.arguments)
+                                        # If terminate has explicit output, use it
+                                        if args.get("output"):
+                                            final_answer = args.get("output")
+                                            break # Found it
+                                    except: pass
+                            else:
+                                continue # Continue to next message if no terminate found in this one
+                            break # Break outer loop if terminate found
 
-                # Check for text content first (since we told LLM to print answer before terminating)
-                if last_msg.content:
-                    final_answer = last_msg.content
-
-                # Then check tool output if available
-                if last_msg.tool_calls:
-                    for tc in last_msg.tool_calls:
-                        if tc.function.name == "terminate":
-                            import json
-                            try:
-                                args = json.loads(tc.function.arguments)
-                                if args.get("output"):
-                                    final_answer = args.get("output")
-                            except: pass
+                        # 2. If it has text content (and not just a tool call), use that
+                        if msg.content:
+                            final_answer = msg.content
+                            break
 
             print(f"\n🤖 Vazal: {final_answer}\n")
 
