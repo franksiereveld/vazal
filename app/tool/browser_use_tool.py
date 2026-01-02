@@ -14,6 +14,7 @@ from app.config import config
 from app.llm import LLM
 from app.tool.base import BaseTool, ToolResult
 from app.tool.web_search import WebSearch
+from app.schema import Message  # Import Message for LLM calls
 
 
 _BROWSER_DESCRIPTION = """\
@@ -322,10 +323,31 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                 elif action == "extract_content":
                     page = await context.get_current_page()
                     content = await page.inner_text("body")
-                    # TRUNCATE CONTENT
-                    if len(content) > 5000:
-                        content = content[:5000] + "\n... [TRUNCATED due to length]"
-                    return ToolResult(output=f"Extracted content:\n{content}")
+                    
+                    # --- SMART EXTRACTION LOGIC ---
+                    # 1. Truncate raw content to a safe limit for the summarizer (e.g., 20k chars)
+                    # This is much larger than the context limit because it's a fresh LLM call.
+                    safe_content = content[:20000] 
+                    
+                    if goal:
+                        # 2. Use LLM to extract specific information
+                        extraction_prompt = (
+                            f"You are a helpful assistant. Extract information relevant to the following goal from the text below.\n"
+                            f"Goal: {goal}\n\n"
+                            f"Text Content:\n{safe_content}\n\n"
+                            f"If the text does not contain relevant information, say 'No relevant information found'. "
+                            f"Keep the summary concise (under 500 words)."
+                        )
+                        try:
+                            summary = await self.llm.ask([Message.user_message(extraction_prompt)])
+                            return ToolResult(output=f"✅ Extracted Summary for '{goal}':\n\n{summary}")
+                        except Exception as e:
+                            return ToolResult(error=f"Smart extraction failed: {e}. Raw content length: {len(content)}")
+                    else:
+                        # Fallback if no goal provided: just return truncated text
+                        if len(content) > 5000:
+                            content = content[:5000] + "\n... [TRUNCATED due to length]"
+                        return ToolResult(output=f"Extracted content (No goal provided):\n{content}")
 
                 elif action == "switch_tab":
                     if tab_id is None:
