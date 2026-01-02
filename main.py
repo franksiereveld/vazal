@@ -7,7 +7,7 @@ import subprocess
 # from rich.status import Status
 from loguru import logger
 
-from app.agent.manus import Manus
+from app.agent.manus import Vazal
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message
 
@@ -35,13 +35,13 @@ async def classify_intent(agent, prompt):
     return await agent.llm.ask([Message.user_message(classifier_prompt)])
 
 async def main():
-    parser = argparse.ArgumentParser(description="Manus AI Agent")
+    parser = argparse.ArgumentParser(description="Vazal AI Agent")
     parser.add_argument("--prompt", type=str, help="Initial prompt")
     args = parser.parse_args()
 
     # Initialize Agent
-    print("🤖 Manus is waking up...")
-    agent = Manus()
+    print("🤖 Vazal is waking up...")
+    agent = Vazal()
     print("✅ Ready!\n")
 
     # If prompt provided via CLI
@@ -69,14 +69,14 @@ async def main():
                 # Extract the chat response
                 parts = classification.split("RESPONSE:")
                 response = parts[1].strip() if len(parts) > 1 else classification
-                print(f"\n🤖 Manus: {response}\n")
+                print(f"\n🤖 Vazal: {response}\n")
                 continue
 
             # If we are here, it's a TASK
             print(f"\n🚀 Starting Task: \"{prompt}\"")
 
             # 2. Run Agent (NO SPINNER - Safe for Input)
-            print("⏳ Manus is working...")
+            print("⏳ Vazal is working...")
             await agent.run(prompt)
 
             # 3. Extract & Print Final Answer
@@ -100,7 +100,7 @@ async def main():
                                     final_answer = args.get("output")
                             except: pass
 
-            print(f"\n🤖 Manus: {final_answer}\n")
+            print(f"\n🤖 Vazal: {final_answer}\n")
 
             # 4. Suggest Lesson
             reflection_prompt = (
