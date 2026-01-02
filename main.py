@@ -12,6 +12,9 @@ from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message
 
 # --- LOGGING SETUP ---
+import logging
+logging.getLogger("browser_use").setLevel(logging.ERROR)
+
 logger.remove()
 # 1. Console: Only show ERRORS (Clean UI)
 logger.add(sys.stderr, level="ERROR")

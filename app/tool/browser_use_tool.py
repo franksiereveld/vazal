@@ -376,7 +376,7 @@ class BrowserUseTool(BaseTool, Generic[Context]):
                                 f"Keep the summary concise (under 500 words)."
                             )
                             try:
-                                summary = await self.llm.ask([Message.user_message(extraction_prompt)])
+                                summary = await self.llm.ask([Message.user_message(extraction_prompt)], stream=False)
                                 
                                 # Fallback if summary fails or is suspiciously short
                                 if "no relevant information" in summary.lower() or len(summary) < 50:

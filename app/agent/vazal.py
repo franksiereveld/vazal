@@ -40,6 +40,8 @@ SYSTEM_PROMPT = (
     "     - If you don't have the details, SEARCH for them first.\n"
     "   - IMAGES: You can provide a URL (http/https) directly, and the tool will download it.\n"
     "     - Use 'browser_use' with extraction_type='images' to find valid URLs.\n"
+    "     - CRITICAL: DO NOT use 'source.unsplash.com' or fake URLs. They WILL FAIL.\n"
+    "     - YOU MUST SEARCH for images first using 'browser_use' or 'fast_search'.\n"
     "6. 'terminate': Call this when DONE. \n"
     "   - IMPORTANT: This tool takes NO arguments (or only 'status').\n"
     "   - BEFORE calling terminate, you MUST print/say the final answer to the user.\n\n"
