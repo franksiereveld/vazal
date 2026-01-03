@@ -14,6 +14,7 @@ from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.block_editor import BlockEditor
 from app.tool.ppt_creator import PPTCreatorTool
+from app.tool.word_creator import WordCreatorTool
 from app.tool.generate_image import GenerateImageTool
 from app.tool.image_search import ImageSearchTool
 from app.tool.fast_search import FastSearch
@@ -41,6 +42,11 @@ SYSTEM_PROMPT = (
     "   - PREFER 'block_editor' over 'str_replace_editor' for code edits.\n"
     "5. 'ppt_creator': Create PowerPoint presentations (.pptx).\n"
     "   - Input: filename, slides (title, content, images, table), and optional template.\n"
+    "   - ... (See detailed rules below)\n"
+    "6. 'word_creator': Create Word documents (.docx).\n"
+    "   - Input: filename, content (list of blocks).\n"
+    "   - Blocks: heading, paragraph, bullet, number, image, table, page_break.\n"
+    "   - Use this for reports, articles, and long-form content.\n"
     "   - CRITICAL: When creating slides, content MUST be detailed and informative.\n"
     "     - DO NOT use generic placeholders like 'Overview of X'.\n"
     "     - DO provide actual facts, figures, names, and descriptions in the bullet points.\n"
@@ -117,6 +123,7 @@ class Vazal(ToolCallAgent):
             BrowserUseTool(),
             BlockEditor(),
             PPTCreatorTool(),
+            WordCreatorTool(),
             GenerateImageTool(),
             ImageSearchTool(),
             StrReplaceEditor(),
