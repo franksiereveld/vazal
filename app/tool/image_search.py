@@ -32,9 +32,11 @@ class ImageSearchTool(BaseTool):
             api_key = os.environ.get("PEXELS_API_KEY")
             
         if not api_key:
+            print("ℹ️ Pexels API Key not found in config or env.")
             return []
         
         try:
+            print(f"🔎 Searching Pexels for: {query}")
             headers = {"Authorization": api_key}
             url = f"https://api.pexels.com/v1/search?query={query}&per_page={max_results}"
             response = requests.get(url, headers=headers, timeout=5)
@@ -59,9 +61,11 @@ class ImageSearchTool(BaseTool):
             api_key = os.environ.get("BING_API_KEY")
 
         if not api_key:
+            print("ℹ️ Bing API Key not found in config or env.")
             return []
         
         try:
+            print(f"🔎 Searching Bing for: {query}")
             headers = {"Ocp-Apim-Subscription-Key": api_key}
             url = f"https://api.bing.microsoft.com/v7.0/images/search?q={query}&count={max_results}"
             response = requests.get(url, headers=headers, timeout=5)
@@ -94,6 +98,11 @@ class ImageSearchTool(BaseTool):
         # 3. Try DuckDuckGo (Fallback / No Key)
         # Always run this to ensure we have results if keys are missing/invalid
         try:
+            print(f"🔎 Searching DuckDuckGo (HTML backend) for: {query}")
+            # Use 'html' backend to avoid 403 Ratelimits
+            # Note: DDGS().images() doesn't support 'backend' param directly in all versions,
+            # but usually 'text' search is safer. For images, we just try-catch.
+            # Actually, let's try to be more robust.
             ddg_results = DDGS().images(
                 query, 
                 region="us-en", 
