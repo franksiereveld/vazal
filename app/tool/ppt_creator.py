@@ -294,8 +294,24 @@ class PPTCreatorTool(BaseTool):
                                         break
                             
                             if pic_placeholder:
-                                # Insert into the placeholder
-                                pic_placeholder.insert_picture(image_path)
+                                # Robust insertion: Get coordinates, then add new picture
+                                try:
+                                    # Try standard insertion first (works for proper Picture placeholders)
+                                    pic_placeholder.insert_picture(image_path)
+                                except AttributeError:
+                                    # Fallback for generic placeholders: Replace with new picture at same coords
+                                    print(f"ℹ️ Placeholder {pic_placeholder.name} doesn't support insert_picture. Replacing with new image shape.")
+                                    left = pic_placeholder.left
+                                    top = pic_placeholder.top
+                                    width = pic_placeholder.width
+                                    height = pic_placeholder.height
+                                    
+                                    # Add the new picture
+                                    slide.shapes.add_picture(image_path, left, top, width=width, height=height)
+                                    
+                                    # Remove the empty placeholder (optional, but cleaner)
+                                    # Note: Removing shapes from a slide is tricky in python-pptx, 
+                                    # so we just cover it up.
                             else:
                                 # Fallback: Add image to the right side
                                 print("ℹ️ No picture placeholder found. Adding manual image.")
