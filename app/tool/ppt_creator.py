@@ -6,6 +6,7 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import PP_PLACEHOLDER
 from pptx.dml.color import RGBColor
+from pptx.enum.text import PP_ALIGN
 from app.tool.base import BaseTool, ToolResult
 
 class PPTCreatorTool(BaseTool):
@@ -46,6 +47,10 @@ class PPTCreatorTool(BaseTool):
                         "quote": {
                             "type": "string",
                             "description": "A relevant quote to display if no image is available (Fallback).",
+                        },
+                        "quote_source": {
+                            "type": "string",
+                            "description": "The source of the quote (Person, Role, Date). Required if quote is provided.",
                         },
                         "sources": {
                             "type": "array",
@@ -297,6 +302,7 @@ class PPTCreatorTool(BaseTool):
                 # --- Add Image OR Quote ---
                 image_path = slide_data.get("image_path")
                 quote = slide_data.get("quote")
+                quote_source = slide_data.get("quote_source")
                 image_added = False
 
                 if image_path:
@@ -325,6 +331,9 @@ class PPTCreatorTool(BaseTool):
                             if pic_placeholder:
                                 # Robust insertion: Get coordinates, then add new picture
                                 try:
+                                    # REMOVE PLACEHOLDER before inserting picture to avoid "Click to add text" ghosting
+                                    # Actually, insert_picture replaces the placeholder content, but sometimes the placeholder remains.
+                                    # The best way is to use the placeholder's insert_picture method if available.
                                     pic_placeholder.insert_picture(image_path)
                                     image_added = True
                                 except AttributeError:
@@ -333,6 +342,11 @@ class PPTCreatorTool(BaseTool):
                                     top = pic_placeholder.top
                                     width = pic_placeholder.width
                                     height = pic_placeholder.height
+                                    
+                                    # Remove the placeholder shape itself to avoid "Click to add text"
+                                    sp = pic_placeholder.element
+                                    sp.getparent().remove(sp)
+                                    
                                     slide.shapes.add_picture(image_path, left, top, width=width, height=height)
                                     image_added = True
                             else:
@@ -363,6 +377,11 @@ class PPTCreatorTool(BaseTool):
                         top = quote_placeholder.top
                         width = quote_placeholder.width
                         height = quote_placeholder.height
+                        
+                        # CRITICAL FIX: Remove the placeholder to get rid of "Click to add text"
+                        sp = quote_placeholder.element
+                        sp.getparent().remove(sp)
+                        
                     else:
                         left = Inches(5.5)
                         top = Inches(2)
@@ -373,11 +392,22 @@ class PPTCreatorTool(BaseTool):
                     txBox = slide.shapes.add_textbox(left, top, width, height)
                     tf = txBox.text_frame
                     tf.word_wrap = True
+                    
+                    # Add Quote Text
                     p = tf.add_paragraph()
                     p.text = f'"{quote}"'
                     p.font.size = Pt(24)
                     p.font.italic = True
                     p.font.color.rgb = RGBColor(80, 80, 80) # Dark gray
+                    
+                    # Add Quote Source (if provided)
+                    if quote_source:
+                        p_source = tf.add_paragraph()
+                        p_source.text = f"- {quote_source}"
+                        p_source.font.size = Pt(14) # Smaller font
+                        p_source.font.italic = False # Normal style
+                        p_source.font.color.rgb = RGBColor(100, 100, 100) # Lighter gray
+                        p_source.alignment = PP_ALIGN.RIGHT # Right align the source
 
                 # --- Add Sources Footer ---
                 sources = slide_data.get("sources", [])
