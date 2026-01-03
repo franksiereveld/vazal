@@ -165,14 +165,14 @@ class PPTCreatorTool(BaseTool):
         # 2. Check for Executive Summary (Slide 2)
         if len(slides) > 1:
             slide2_title = slides[1].get("title", "").lower()
-            valid_summary_terms = ["summary", "agenda", "table of contents", "overview", "roadmap", "table des matières", "sommaire"]
+            valid_summary_terms = ["summary", "agenda", "table of contents", "overview", "roadmap", "table des matières", "sommaire", "inhaltsverzeichnis", "zusammenfassung", "überblick", "agenda"]
             if not any(term in slide2_title for term in valid_summary_terms):
                 errors.append("Slide 2 MUST be an 'Executive Summary', 'Agenda', or 'Table of Contents'.")
 
         # 3. Check for Conclusion (Last Slide)
         if len(slides) > 0:
             last_slide_title = slides[-1].get("title", "").lower()
-            valid_conclusion_terms = ["conclusion", "next steps", "future outlook", "summary", "closing"]
+            valid_conclusion_terms = ["conclusion", "next steps", "future outlook", "summary", "closing", "fazit", "ausblick", "zusammenfassung", "prochaines étapes", "conclusion"]
             if not any(term in last_slide_title for term in valid_conclusion_terms):
                 errors.append("The LAST slide MUST be a 'Conclusion', 'Next Steps', or 'Future Outlook'.")
 
