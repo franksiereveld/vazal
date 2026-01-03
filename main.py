@@ -95,11 +95,16 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
         # Wrap string in Message object
         lesson_suggestion = await agent.llm.ask([Message.user_message(reflection_prompt)], stream=False)
 
-        if lesson_suggestion and "NO" not in lesson_suggestion.upper() and len(lesson_suggestion) > 5:
+          if lesson_suggestion and "NO" not in lesson_suggestion.upper() and len(lesson_suggestion) > 5:
             print(f"💡 Suggested Lesson: \"{lesson_suggestion}\"")
-            confirm = input("Save this lesson? (y/n): ").lower()
-            if confirm in ['y', 'yes']:
-                agent.memory_manager.save_lesson(lesson_suggestion)
+            choice = input("Save as (1) General/User Lesson, (2) Chief of Staff Role Lesson, (n) No? [1/2/n]: ").lower()
+            
+            tags = []
+            if choice == '2' or choice == 'role':
+                tags = ["role:chief_of_staff", "chief of staff"]
+            
+            if choice in ['1', '2', 'y', 'role']:
+                agent.lesson_manager.save_lesson(lesson_suggestion, tags=tags)
                 print("✅ Lesson saved.")
         else:
             print("No new lessons learned.")
