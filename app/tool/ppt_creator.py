@@ -100,6 +100,37 @@ class PPTCreatorTool(BaseTool):
             return None
 
     async def execute(self, filename: str, slides: list, template: str = None, **kwargs) -> ToolResult:
+        # --- STRICT VALIDATION ---
+        errors = []
+        
+        # 1. Check for Executive Summary (Slide 2)
+        if len(slides) > 1:
+            slide2_title = slides[1].get("title", "").lower()
+            valid_summary_terms = ["summary", "agenda", "table of contents", "overview", "roadmap"]
+            if not any(term in slide2_title for term in valid_summary_terms):
+                errors.append("Slide 2 MUST be an 'Executive Summary', 'Agenda', or 'Table of Contents'.")
+
+        # 2. Check for Unique Images
+        image_urls = [s.get("image_path") for s in slides if s.get("image_path")]
+        if len(image_urls) != len(set(image_urls)):
+            errors.append("You reused the same image on multiple slides. Each slide MUST have a UNIQUE image.")
+
+        # 3. Check for Titles and Content Depth
+        for i, slide in enumerate(slides):
+            if not slide.get("title"):
+                errors.append(f"Slide {i+1} is missing a title.")
+            
+            # Skip title slide (index 0) and summary (index 1) for bullet count check
+            if i > 1 and i < len(slides) - 1: 
+                content = slide.get("content", [])
+                if len(content) < 4:
+                    errors.append(f"Slide {i+1} ('{slide.get('title')}') has only {len(content)} bullet points. It needs at least 4 detailed points.")
+
+        if errors:
+            error_msg = "❌ PRESENTATION REJECTED due to quality rules:\n" + "\n".join(errors)
+            return ToolResult(error=error_msg)
+        # -------------------------
+
         try:
             # Ensure output directory exists
             output_dir = "output"
