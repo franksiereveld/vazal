@@ -143,26 +143,47 @@ class PPTCreatorTool(BaseTool):
         # --- STRICT VALIDATION ---
         errors = []
         
-        # 1. Check for Executive Summary (Slide 2)
+        # 1. Check for Minimum Slide Count
+        if len(slides) < 5:
+            errors.append(f"Presentation is too short ({len(slides)} slides). It MUST have at least 5 slides (Title + Summary + 2 Content + Conclusion).")
+
+        # 2. Check for Executive Summary (Slide 2)
         if len(slides) > 1:
             slide2_title = slides[1].get("title", "").lower()
             valid_summary_terms = ["summary", "agenda", "table of contents", "overview", "roadmap"]
             if not any(term in slide2_title for term in valid_summary_terms):
                 errors.append("Slide 2 MUST be an 'Executive Summary', 'Agenda', or 'Table of Contents'.")
 
-        # 2. Check for Unique Images
+        # 3. Check for Conclusion (Last Slide)
+        if len(slides) > 0:
+            last_slide_title = slides[-1].get("title", "").lower()
+            valid_conclusion_terms = ["conclusion", "next steps", "future outlook", "summary", "closing"]
+            if not any(term in last_slide_title for term in valid_conclusion_terms):
+                errors.append("The LAST slide MUST be a 'Conclusion', 'Next Steps', or 'Future Outlook'.")
+
+        # 4. Check for Unique Images
         image_urls = [s.get("image_path") for s in slides if s.get("image_path")]
         if len(image_urls) != len(set(image_urls)):
             errors.append("You reused the same image on multiple slides. Each slide MUST have a UNIQUE image.")
 
-        # 3. Check for Titles and Content Depth
+        # 5. Check for Titles and Content Depth
         for i, slide in enumerate(slides):
             if not slide.get("title"):
                 errors.append(f"Slide {i+1} is missing a title.")
             
-            # Skip title slide (index 0) and summary (index 1) for bullet count check
-            if i > 1 and i < len(slides) - 1: 
-                content = slide.get("content", [])
+            # Skip title slide (index 0) and summary (index 1) and conclusion (last index) for strict bullet count check
+            # BUT ensure they are not empty.
+            content = slide.get("content", [])
+            
+            if i == 0: # Title Slide
+                pass 
+            elif i == 1: # Summary Slide
+                if len(content) < 3:
+                     errors.append(f"Slide 2 (Summary) needs at least 3 items.")
+            elif i == len(slides) - 1: # Conclusion Slide
+                if len(content) < 2:
+                     errors.append(f"Last Slide (Conclusion) needs at least 2 items.")
+            else: # Content Slides
                 if len(content) < 4:
                     errors.append(f"Slide {i+1} ('{slide.get('title')}') has only {len(content)} bullet points. It needs at least 4 detailed points.")
 
