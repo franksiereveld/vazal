@@ -103,7 +103,7 @@ class WordCreatorTool(BaseTool):
             print(f"⚠️ Failed to download image {url}: {e}")
             return None
 
-    def execute(self, filename: str, content: list, title: str = None) -> ToolResult:
+    async def execute(self, filename: str, content: list, title: str = None) -> ToolResult:
         try:
             # Ensure output directory exists
             output_dir = "output"
