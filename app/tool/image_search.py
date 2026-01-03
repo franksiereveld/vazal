@@ -22,6 +22,28 @@ class ImageSearchTool(BaseTool):
         "required": ["query"],
     }
 
+    def _search_tavily(self, query: str, max_results: int) -> list:
+        """Search Tavily API for images."""
+        api_key = None
+        if config.search_config:
+            api_key = config.search_config.tavily_api_key or config.search_config.api_key
+        
+        if not api_key:
+            api_key = os.environ.get("TAVILY_API_KEY")
+            
+        if not api_key:
+            return []
+            
+        try:
+            from tavily import TavilyClient
+            print(f"🔎 Searching Tavily Images for: {query}")
+            client = TavilyClient(api_key=api_key)
+            response = client.search(query, search_depth="basic", include_images=True, max_results=max_results)
+            return [img['url'] for img in response.get('images', [])]
+        except Exception as e:
+            print(f"⚠️ Tavily Image Search Failed: {e}")
+            return []
+
     def _search_pexels(self, query: str, max_results: int) -> list:
         """Search Pexels API for high-quality stock photos."""
         # Check config first, then env var
@@ -65,26 +87,11 @@ class ImageSearchTool(BaseTool):
 
 
 
-        # 3. Try DuckDuckGo (Fallback / No Key)
-        # Always run this to ensure we have results if keys are missing/invalid
-        try:
-            print(f"🔎 Searching DuckDuckGo (HTML backend) for: {query}")
-            # Use 'html' backend to avoid 403 Ratelimits
-            # Note: DDGS().images() doesn't support 'backend' param directly in all versions,
-            # but usually 'text' search is safer. For images, we just try-catch.
-            # Actually, let's try to be more robust.
-            ddg_results = DDGS().images(
-                query, 
-                region="us-en", 
-                safesearch="off", 
-                max_results=max_results
-            )
-            if ddg_results:
-                ddg_urls = [r.get('image') for r in ddg_results if r.get('image')]
-                all_urls.extend(ddg_urls)
-                sources_used.append("DuckDuckGo")
-        except Exception as e:
-            print(f"⚠️ DuckDuckGo Search Failed: {e}")
+        # 2. Try Tavily (Reliable Fallback)
+        tavily_urls = self._search_tavily(query, max_results)
+        if tavily_urls:
+            all_urls.extend(tavily_urls)
+            sources_used.append("Tavily")
 
         if not all_urls:
             return ToolResult(output="No images found from any source (Pexels, Bing, DuckDuckGo).")
