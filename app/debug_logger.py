@@ -24,6 +24,9 @@ file_handler.setFormatter(formatter)
 if not debug_logger.handlers:
     debug_logger.addHandler(file_handler)
 
+# Prevent logs from propagating to the root logger (which might print to console)
+debug_logger.propagate = False
+
 # Console handler (only added if verbose mode is enabled)
 console_handler = None
 VERBOSE_MODE = os.environ.get("VAZAL_VERBOSE", "false").lower() == "true"

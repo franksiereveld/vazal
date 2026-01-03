@@ -6,6 +6,10 @@ from chromadb.utils import embedding_functions
 from typing import List, Dict, Optional
 from datetime import datetime
 from app.logger import logger
+import logging
+
+# Silence sentence-transformers progress bar and info logs
+logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
 # Configuration
 DB_PATH = "data/chroma_db"
