@@ -17,6 +17,7 @@ from app.tool.ppt_creator import PPTCreatorTool
 from app.tool.generate_image import GenerateImageTool
 from app.tool.image_search import ImageSearchTool
 from app.tool.fast_search import FastSearch
+from app.tool.tavily_search import TavilySearch
 from app.memory.vector_lessons import VectorLessonManager # Updated Import
 
 # --- PROMPTS DEFINED GLOBALLY ---
@@ -26,9 +27,12 @@ SYSTEM_PROMPT = (
     "Your goal is to SOLVE tasks by taking ACTION, not just chatting.\n\n"
 
     "AVAILABLE TOOLS:\n"
-    "1. 'fast_search': USE THIS FIRST for facts. \n"
+    "1. 'tavily_search': USE THIS FIRST for high-quality, factual web search.\n"
+    "   - Optimized for AI agents. Returns clean, up-to-date content.\n"
+    "   - Use 'search_depth=\"advanced\"' for deep research.\n"
+    "2. 'fast_search': Fallback for quick facts if Tavily is unavailable.\n"
     "   - WARNING: If 'fast_search' fails or is rate-limited, STOP using it.\n"
-    "   - SWITCH IMMEDIATELY to 'browser_use' to search Google/Bing directly.\n"
+    "   - SWITCH IMMEDIATELY to 'browser_use' to search Google directly.\n"
     "2. 'python_execute': Run Python code for calculations, data analysis, or CREATING FILES.\n"
     "3. 'browser_use': Use for finding IMAGES or navigating specific sites.\n"
     "   - PREFER 'fast_search' for text/facts. Only use 'browser_use' for text if 'fast_search' fails.\n"
@@ -69,7 +73,7 @@ SYSTEM_PROMPT = (
     "     4. NARRATIVE FLOW: Create titles that tell a story step-by-step.\n"
     "     5. CONTENT DEPTH: Every content slide MUST have at least 4 detailed bullet points.\n"
     "     If you fail these rules, the tool will REJECT your presentation.\n"
-    "6. 'image_search': Search for images using Pexels, Bing, and DuckDuckGo.\n"
+    "6. 'image_search': Search for images using Pexels and DuckDuckGo.\n"
     "   - Automatically checks multiple sources for high-quality real images.\n"
     "   - Use this to find real image URLs for presentations.\n"
     "   - Input: query (e.g., 'surfing hawaii').\n"
@@ -108,6 +112,7 @@ class Vazal(ToolCallAgent):
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
             PythonExecute(),
+            TavilySearch(),
             FastSearch(),
             BrowserUseTool(),
             BlockEditor(),

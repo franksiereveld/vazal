@@ -6,7 +6,7 @@ from app.config import config
 
 class ImageSearchTool(BaseTool):
     name: str = "image_search"
-    description: str = "Search for images using DuckDuckGo, Pexels (if key present), and Bing (if key present). Returns a list of valid image URLs."
+    description: str = "Search for images using DuckDuckGo and Pexels (if key present). Returns a list of valid image URLs."
     parameters: dict = {
         "type": "object",
         "properties": {
@@ -51,33 +51,7 @@ class ImageSearchTool(BaseTool):
             print(f"⚠️ Pexels Search Failed: {e}")
             return []
 
-    def _search_bing(self, query: str, max_results: int) -> list:
-        """Search Bing Image Search API."""
-        # Check config first, then env var
-        api_key = None
-        if config.search_config:
-            api_key = config.search_config.bing_api_key
-        if not api_key:
-            api_key = os.environ.get("BING_API_KEY")
 
-        if not api_key:
-            print("ℹ️ Bing API Key not found in config or env.")
-            return []
-        
-        try:
-            print(f"🔎 Searching Bing for: {query}")
-            headers = {"Ocp-Apim-Subscription-Key": api_key}
-            url = f"https://api.bing.microsoft.com/v7.0/images/search?q={query}&count={max_results}"
-            response = requests.get(url, headers=headers, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                return [img['contentUrl'] for img in data.get('value', [])]
-            else:
-                print(f"⚠️ Bing API Error: {response.status_code}")
-                return []
-        except Exception as e:
-            print(f"⚠️ Bing Search Failed: {e}")
-            return []
 
     async def execute(self, query: str, max_results: int = 5) -> ToolResult:
         all_urls = []
@@ -89,11 +63,7 @@ class ImageSearchTool(BaseTool):
             all_urls.extend(pexels_urls)
             sources_used.append("Pexels")
 
-        # 2. Try Bing (Good for News/Events)
-        bing_urls = self._search_bing(query, max_results)
-        if bing_urls:
-            all_urls.extend(bing_urls)
-            sources_used.append("Bing")
+
 
         # 3. Try DuckDuckGo (Fallback / No Key)
         # Always run this to ensure we have results if keys are missing/invalid
