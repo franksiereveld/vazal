@@ -8,7 +8,7 @@ def inspect_memory():
     
     try:
         client = chromadb.PersistentClient(path=db_path)
-        collection = client.get_collection("lessons")
+        collection = client.get_collection("vazal_lessons")
         
         count = collection.count()
         print(f"📊 Total Lessons: {count}")
