@@ -282,8 +282,13 @@ class PPTCreatorTool(BaseTool):
                     tf.text = ""  # Clear default text
                     for point in slide_data.get("content", []):
                         p = tf.add_paragraph()
-                        p.text = point
-                        p.level = 0
+                        # Check for sub-bullets (starting with '  -' or '\t')
+                        if point.startswith("  -") or point.startswith("\t") or point.startswith("    -"):
+                            p.text = point.lstrip(" \t-")
+                            p.level = 1 # Indent Level 2
+                        else:
+                            p.text = point
+                            p.level = 0 # Main Level 1
                 else:
                     # Fallback: Create a text box manually
                     print("ℹ️ No body placeholder found. Creating manual text box.")
@@ -296,8 +301,12 @@ class PPTCreatorTool(BaseTool):
                     tf.word_wrap = True
                     for point in slide_data.get("content", []):
                         p = tf.add_paragraph()
-                        p.text = f"• {point}"
-                        p.level = 0
+                        if point.startswith("  -") or point.startswith("\t") or point.startswith("    -"):
+                            p.text = f"  ◦ {point.lstrip(' \t-')}"
+                            p.level = 1
+                        else:
+                            p.text = f"• {point}"
+                            p.level = 0
 
                 # --- Add Image OR Quote ---
                 image_path = slide_data.get("image_path")
