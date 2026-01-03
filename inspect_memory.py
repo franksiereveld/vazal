@@ -3,7 +3,7 @@ from app.config import config
 import os
 
 def inspect_memory():
-    db_path = os.path.join(config.workspace_root, "data", "chroma_db")
+    db_path = os.path.join(os.getcwd(), "data", "chroma_db")
     print(f"📂 Opening Vector DB at: {db_path}")
     
     try:
