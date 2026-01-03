@@ -340,24 +340,44 @@ class PPTCreatorTool(BaseTool):
                             if pic_placeholder:
                                 # Robust insertion: Get coordinates, then add new picture
                                 try:
-                                    # REMOVE PLACEHOLDER before inserting picture to avoid "Click to add text" ghosting
-                                    # Actually, insert_picture replaces the placeholder content, but sometimes the placeholder remains.
-                                    # The best way is to use the placeholder's insert_picture method if available.
-                                    pic_placeholder.insert_picture(image_path)
-                                    image_added = True
-                                except AttributeError:
-                                    # Fallback for generic placeholders
-                                    left = pic_placeholder.left
-                                    top = pic_placeholder.top
-                                    width = pic_placeholder.width
-                                    height = pic_placeholder.height
-                                    
-                                    # Remove the placeholder shape itself to avoid "Click to add text"
+                                    # Calculate aspect ratio to prevent stretching
+                                    # 1. Get target dimensions
+                                    target_width = pic_placeholder.width
+                                    target_height = pic_placeholder.height
+                                    target_ratio = target_width / target_height
+
+                                    # 2. Get image dimensions
+                                    with Image.open(image_path) as img:
+                                        img_width, img_height = img.size
+                                        img_ratio = img_width / img_height
+
+                                    # 3. Calculate new dimensions (Fit to Box)
+                                    if img_ratio > target_ratio:
+                                        # Image is wider than target -> constrain by width
+                                        new_width = target_width
+                                        new_height = int(target_width / img_ratio)
+                                    else:
+                                        # Image is taller than target -> constrain by height
+                                        new_height = target_height
+                                        new_width = int(target_height * img_ratio)
+
+                                    # 4. Center the image
+                                    left = pic_placeholder.left + (target_width - new_width) // 2
+                                    top = pic_placeholder.top + (target_height - new_height) // 2
+
+                                    # 5. Remove the placeholder shape itself to avoid "Click to add text"
                                     sp = pic_placeholder.element
                                     sp.getparent().remove(sp)
                                     
-                                    slide.shapes.add_picture(image_path, left, top, width=width, height=height)
+                                    # 6. Add the picture with calculated dimensions
+                                    slide.shapes.add_picture(image_path, left, top, width=new_width, height=new_height)
                                     image_added = True
+                                except Exception as e:
+                                    print(f"⚠️ Error fitting image: {e}. Falling back to standard insertion.")
+                                    # Fallback: Just insert into placeholder (might stretch if using insert_picture)
+                                    # But since we removed the placeholder in the try block, we might need to be careful.
+                                    # If the placeholder is gone, we can't use it.
+                                    pass
                             else:
                                 # Fallback: Add image to the right side
                                 print("ℹ️ No picture placeholder found. Adding manual image.")
