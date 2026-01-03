@@ -2,9 +2,7 @@ import argparse
 import asyncio
 import sys
 import os
-import subprocess
-# from rich.console import Console
-# from rich.status import Status
+import json
 from loguru import logger
 
 from app.agent.vazal import Vazal
@@ -87,48 +85,56 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
         f"Review this interaction:\n{context_summary}\n"
         "Did the user provide a CORRECTION, PREFERENCE, or NEW RULE? "
         "Look for phrases like 'Always...', 'Make sure...', 'Never...', 'I want...', 'Use...'.\n"
-        "Examples: 'Always create titles for each slide', 'Make sure to include a summary', 'Never use blue background'.\n"
-        "If yes, output ONLY the concise lesson text (e.g. 'Always include a Table of Contents in presentations'). "
-        "If no specific lesson, output 'NO'."
+        "Also look for implicit corrections (e.g., user says 'The font is too small' -> Lesson: 'Use larger fonts').\n\n"
+        "If a lesson is found, output a JSON object with:\n"
+        "- \"found\": true\n"
+        "- \"content\": \"The concise lesson text\"\n"
+        "- \"scope\": \"USER\" (personal pref), \"ROLE\" (job specific), or \"GENERAL\" (universal rule)\n"
+        "- \"role\": \"role_name\" (only if scope is ROLE, else null)\n"
+        "- \"rationale\": \"Why this lesson is needed\"\n\n"
+        "If NO lesson is found, output: {\"found\": false}"
     )
     
     try:
         # Wrap string in Message object
-        lesson_suggestion = await agent.llm.ask([Message.user_message(reflection_prompt)], stream=False)
+        response_str = await agent.llm.ask([Message.user_message(reflection_prompt)], stream=False)
         
         # Log the raw suggestion for debugging
-        logger.debug(f"Raw lesson suggestion: {lesson_suggestion}")
+        logger.debug(f"Raw lesson suggestion: {response_str}")
 
-        # Improved logic: Check if response is a rejection (starts with NO or is very short)
-        is_rejection = (
-            lesson_suggestion.strip().upper().startswith("NO") or
-            lesson_suggestion.strip().upper() == "NO" or
-            len(lesson_suggestion.strip()) <= 3
-        )
-        
-        # Check if response looks like a valid lesson (has substance)
-        is_valid_lesson = (
-            lesson_suggestion and 
-            len(lesson_suggestion.strip()) > 10 and
-            not is_rejection
-        )
+        # Parse JSON
+        try:
+            # Clean up potential markdown code blocks
+            if "```json" in response_str:
+                response_str = response_str.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_str:
+                response_str = response_str.split("```")[1].split("```")[0].strip()
+            
+            lesson_data = json.loads(response_str)
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse lesson JSON: {response_str}")
+            return
 
-        if is_valid_lesson:
-            print(f"💡 Suggested Lesson: \"{lesson_suggestion}\"")
-            choice = input("Save as (1) General/User Lesson, (2) Chief of Staff Role Lesson, (n) No? [1/2/n]: ").lower()
+        if lesson_data.get("found"):
+            content = lesson_data.get("content")
+            scope = lesson_data.get("scope", "GENERAL").upper()
+            role = lesson_data.get("role")
+            rationale = lesson_data.get("rationale")
+
+            print(f"\n💡 Suggested Lesson ({scope}): \"{content}\"")
+            print(f"   Rationale: {rationale}")
             
-            tags = []
-            if choice == '2' or choice == 'role':
-                tags = ["role:chief_of_staff", "chief of staff"]
+            choice = input(f"Save this lesson? [Y/n]: ").lower()
             
-            if choice in ['1', '2', 'y', 'role']:
-                agent.lesson_manager.save_lesson(lesson_suggestion, tags=tags)
-                print("✅ Lesson saved.")
+            if choice in ['y', 'yes', '']:
+                # Use the new VectorLessonManager
+                agent.memory_manager.save_lesson(content, scope=scope, role=role)
+                print("✅ Lesson saved to Vector DB.")
             else:
                 print("Lesson not saved.")
         else:
-            logger.debug(f"No valid lesson detected. Rejection: {is_rejection}, Length: {len(lesson_suggestion.strip()) if lesson_suggestion else 0}")
-            print("No new lessons learned.")
+            logger.debug("No lesson found in this interaction.")
+
     except Exception as e:
         logger.error(f"Error in lesson suggestion: {e}")
 

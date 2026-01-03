@@ -13,11 +13,11 @@ from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.block_editor import BlockEditor
-from app.tool.ppt_creator import PPTCreatorTool  # Updated Import
+from app.tool.ppt_creator import PPTCreatorTool
 from app.tool.generate_image import GenerateImageTool
 from app.tool.image_search import ImageSearchTool
 from app.tool.fast_search import FastSearch
-from app.memory.lessons import LessonManager
+from app.memory.vector_lessons import VectorLessonManager # Updated Import
 
 # --- PROMPTS DEFINED GLOBALLY ---
 # NOTE: We use double braces {{ }} for JSON examples so Python doesn't confuse them with variables.
@@ -106,7 +106,7 @@ class Vazal(ToolCallAgent):
             FastSearch(),
             BrowserUseTool(),
             BlockEditor(),
-            PPTCreatorTool(),  # Updated Instantiation
+            PPTCreatorTool(),
             GenerateImageTool(),
             ImageSearchTool(),
             StrReplaceEditor(),
@@ -116,7 +116,7 @@ class Vazal(ToolCallAgent):
     )
 
     # Memory Management
-    memory_manager: LessonManager = Field(default_factory=LessonManager)
+    memory_manager: VectorLessonManager = Field(default_factory=VectorLessonManager)
 
     # Internal state
     _initialized: bool = False
@@ -163,7 +163,8 @@ class Vazal(ToolCallAgent):
 
         # --- MEMORY INJECTION ---
         # 1. Get lessons
-        lessons = self.memory_manager.get_relevant_lessons()
+        # TODO: Pass current role if available in context
+        lessons = self.memory_manager.get_relevant_lessons(query=self.memory.messages[-1].content if self.memory.messages else "")
 
         # 2. Backup original system prompt
         original_system_prompt = self.system_prompt
