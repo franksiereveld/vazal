@@ -2,6 +2,7 @@ import os
 import requests
 from duckduckgo_search import DDGS
 from app.tool.base import BaseTool, ToolResult
+from app.config import config
 
 class ImageSearchTool(BaseTool):
     name: str = "image_search"
@@ -23,7 +24,13 @@ class ImageSearchTool(BaseTool):
 
     def _search_pexels(self, query: str, max_results: int) -> list:
         """Search Pexels API for high-quality stock photos."""
-        api_key = os.environ.get("PEXELS_API_KEY")
+        # Check config first, then env var
+        api_key = None
+        if config.search_config:
+            api_key = config.search_config.pexels_api_key
+        if not api_key:
+            api_key = os.environ.get("PEXELS_API_KEY")
+            
         if not api_key:
             return []
         
@@ -44,7 +51,13 @@ class ImageSearchTool(BaseTool):
 
     def _search_bing(self, query: str, max_results: int) -> list:
         """Search Bing Image Search API."""
-        api_key = os.environ.get("BING_API_KEY")
+        # Check config first, then env var
+        api_key = None
+        if config.search_config:
+            api_key = config.search_config.bing_api_key
+        if not api_key:
+            api_key = os.environ.get("BING_API_KEY")
+
         if not api_key:
             return []
         

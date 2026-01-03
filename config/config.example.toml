@@ -83,6 +83,10 @@ temperature = 0.0                          # Controls randomness for vision mode
 engine = "DuckDuckGo"
 # API key for Tavily search engine (required if engine is "Tavily")
 api_key = "YOUR_TAVILY_API_KEY"
+# API key for Pexels image search (optional, for high-quality stock photos)
+pexels_api_key = "YOUR_PEXELS_API_KEY"
+# API key for Bing image search (optional, for news/event photos)
+bing_api_key = "YOUR_BING_API_KEY"
 # Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
 fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
 # Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.

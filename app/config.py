@@ -39,6 +39,8 @@ class ProxySettings(BaseModel):
 class SearchSettings(BaseModel):
     engine: str = Field(default="Google", description="Search engine the llm to use")
     api_key: Optional[str] = Field(None, description="API key for the search engine (e.g. Tavily)")
+    pexels_api_key: Optional[str] = Field(None, description="API key for Pexels image search")
+    bing_api_key: Optional[str] = Field(None, description="API key for Bing image search")
     fallback_engines: List[str] = Field(
         default_factory=lambda: ["DuckDuckGo", "Baidu", "Bing"],
         description="Fallback search engines to try if the primary engine fails",
