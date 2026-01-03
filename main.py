@@ -94,8 +94,25 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
     try:
         # Wrap string in Message object
         lesson_suggestion = await agent.llm.ask([Message.user_message(reflection_prompt)], stream=False)
+        
+        # Log the raw suggestion for debugging
+        logger.debug(f"Raw lesson suggestion: {lesson_suggestion}")
 
-        if lesson_suggestion and "NO" not in lesson_suggestion.upper() and len(lesson_suggestion) > 5:
+        # Improved logic: Check if response is a rejection (starts with NO or is very short)
+        is_rejection = (
+            lesson_suggestion.strip().upper().startswith("NO") or
+            lesson_suggestion.strip().upper() == "NO" or
+            len(lesson_suggestion.strip()) <= 3
+        )
+        
+        # Check if response looks like a valid lesson (has substance)
+        is_valid_lesson = (
+            lesson_suggestion and 
+            len(lesson_suggestion.strip()) > 10 and
+            not is_rejection
+        )
+
+        if is_valid_lesson:
             print(f"💡 Suggested Lesson: \"{lesson_suggestion}\"")
             choice = input("Save as (1) General/User Lesson, (2) Chief of Staff Role Lesson, (n) No? [1/2/n]: ").lower()
             
@@ -106,7 +123,10 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
             if choice in ['1', '2', 'y', 'role']:
                 agent.lesson_manager.save_lesson(lesson_suggestion, tags=tags)
                 print("✅ Lesson saved.")
+            else:
+                print("Lesson not saved.")
         else:
+            logger.debug(f"No valid lesson detected. Rejection: {is_rejection}, Length: {len(lesson_suggestion.strip()) if lesson_suggestion else 0}")
             print("No new lessons learned.")
     except Exception as e:
         logger.error(f"Error in lesson suggestion: {e}")
