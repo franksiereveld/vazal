@@ -30,8 +30,14 @@ class TavilySearch(BaseTool):
 
     def execute(self, query: str, search_depth: str = "basic", include_answer: bool = False) -> ToolResult:
         api_key = os.environ.get("TAVILY_API_KEY")
-        if config.search_config and config.search_config.tavily_api_key:
-            api_key = config.search_config.tavily_api_key
+        
+        if config.search_config:
+            # Priority 1: Specific Tavily Key
+            if config.search_config.tavily_api_key:
+                api_key = config.search_config.tavily_api_key
+            # Priority 2: Generic API Key (if engine is Tavily)
+            elif config.search_config.api_key and config.search_config.engine.lower() == "tavily":
+                api_key = config.search_config.api_key
             
         if not api_key:
             return ToolResult(error="Tavily API Key not found. Please set TAVILY_API_KEY in env or config.")
