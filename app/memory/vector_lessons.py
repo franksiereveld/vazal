@@ -103,13 +103,6 @@ class VectorLessonManager:
         results_text = []
         
         # 1. USER Lessons (Always include all, or top 10 if too many)
-        user_results = self.collection.query(
-            query_texts=[""], # Empty query to match metadata filter only? No, Chroma needs query.
-            # Actually, to get ALL user lessons, we can use 'get' instead of 'query'
-            where={"scope": "USER"},
-            limit=10
-        )
-        
         # Chroma 'get' is better for filtering without semantic search
         user_lessons = self.collection.get(where={"scope": "USER"}, limit=20)
         if user_lessons["metadatas"]:
