@@ -11,7 +11,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 debug_logger = logging.getLogger("vazal_debug")
 debug_logger.setLevel(logging.DEBUG)
 
-# Create a file handler
+# Create a file handler (always write to file)
 log_file = os.path.join(LOG_DIR, f"debug_trace_{datetime.now().strftime('%Y%m%d')}.log")
 file_handler = logging.FileHandler(log_file, encoding='utf-8')
 file_handler.setLevel(logging.DEBUG)
@@ -20,9 +20,24 @@ file_handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 
-# Add the handler to the logger
+# Add the file handler to the logger
 if not debug_logger.handlers:
     debug_logger.addHandler(file_handler)
+
+# Console handler (only added if verbose mode is enabled)
+console_handler = None
+VERBOSE_MODE = os.environ.get("VAZAL_VERBOSE", "false").lower() == "true"
+
+def enable_console_logging():
+    """Enable console output for debug logs (called when --verbose flag is used)."""
+    global console_handler, VERBOSE_MODE
+    if console_handler is None:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        console_handler.setFormatter(formatter)
+        debug_logger.addHandler(console_handler)
+        VERBOSE_MODE = True
+        os.environ["VAZAL_VERBOSE"] = "true"
 
 def log_llm_interaction(messages, response):
     """Log LLM input messages and output response."""
@@ -36,6 +51,7 @@ def log_llm_interaction(messages, response):
         debug_logger.debug(json.dumps(log_entry, indent=2, ensure_ascii=False))
     except Exception as e:
         debug_logger.error(f"Failed to log LLM interaction: {e}")
+        pass
 
 def log_tool_execution(tool_name, arguments, result):
     """Log tool execution details."""
@@ -50,3 +66,4 @@ def log_tool_execution(tool_name, arguments, result):
         debug_logger.debug(json.dumps(log_entry, indent=2, ensure_ascii=False))
     except Exception as e:
         debug_logger.error(f"Failed to log tool execution: {e}")
+        pass

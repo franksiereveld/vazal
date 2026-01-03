@@ -10,6 +10,7 @@ from loguru import logger
 from app.agent.vazal import Vazal
 from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import Message
+from app.debug_logger import enable_console_logging
 
 # --- LOGGING SETUP ---
 import logging
@@ -143,7 +144,8 @@ async def main():
         logger.add(sys.stderr, level="INFO")
         logger.add("agent.log", level="DEBUG", rotation="10 MB", mode="w")
         logger.add("error.log", level="ERROR", rotation="10 MB", mode="w", backtrace=True, diagnose=True)
-        print("🔧 Verbose mode enabled")
+        enable_console_logging()
+        print("🔧 Verbose mode enabled - Debug logs will appear in console")
 
     # Initialize Agent
     print("🤖 Vazal is waking up...")
