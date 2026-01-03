@@ -5,6 +5,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 from typing import List, Dict, Optional
 from datetime import datetime
+from app.logger import logger
 
 # Configuration
 DB_PATH = "data/chroma_db"
@@ -36,7 +37,7 @@ class VectorLessonManager:
 
     def _migrate_old_lessons(self):
         """Migrates legacy JSON lessons to Vector DB as GENERAL scope."""
-        print("🔄 Migrating legacy lessons to Vector DB...")
+        logger.info("🔄 Migrating legacy lessons to Vector DB...")
         try:
             with open(OLD_LESSONS_FILE, 'r') as f:
                 data = json.load(f)
@@ -58,9 +59,9 @@ class VectorLessonManager:
                 
                 self.save_lesson(content, scope=scope, role=role, tags=tags)
             
-            print(f"✅ Migrated {len(data)} lessons.")
+            logger.info(f"✅ Migrated {len(data)} lessons.")
         except Exception as e:
-            print(f"⚠️ Migration failed: {e}")
+            logger.error(f"⚠️ Migration failed: {e}")
 
     def save_lesson(self, content: str, scope: str = "GENERAL", role: str = "none", tags: List[str] = None):
         """
@@ -73,7 +74,7 @@ class VectorLessonManager:
         # Check for exact duplicates to avoid spam
         existing = self.collection.get(where={"content": content})
         if existing["ids"]:
-            print(f"ℹ️ Lesson already exists: {content[:30]}...")
+            logger.debug(f"ℹ️ Lesson already exists: {content[:30]}...")
             return
 
         lesson_id = str(uuid.uuid4())
@@ -90,7 +91,7 @@ class VectorLessonManager:
             metadatas=[metadata],
             ids=[lesson_id]
         )
-        print(f"✅ Lesson saved ({scope}): {content[:50]}...")
+        logger.info(f"✅ Lesson saved ({scope}): {content[:50]}...")
 
     def get_relevant_lessons(self, query: str = "", current_role: str = "none") -> str:
         """
