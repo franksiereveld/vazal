@@ -95,28 +95,34 @@ OpenManus requires configuration for the LLM APIs it uses. Follow these steps to
 1. Create a `config.toml` file in the `config` directory (you can copy from the example):
 
 ```bash
-cp config/config.example.toml config/config.toml
-```
-
-2. Edit `config/config.toml` to add your API keys and customize settings:
-
-```toml
-# Global LLM configuration
-[llm]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
-max_tokens = 4096
-temperature = 0.0
-
-# Optional configuration for specific LLM models
-[llm.vision]
-model = "gpt-4o"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-..."  # Replace with your actual API key
-```
-
-## Quick Start
+c101	2. Edit `config/config.toml` to add your API keys and customize settings:
+102	
+103	```toml
+104	# Global LLM configuration
+105	[llm]
+106	model = "gpt-4o"
+107	base_url = "https://api.openai.com/v1"
+108	api_key = "sk-..."  # Replace with your actual API key
+109	max_tokens = 4096
+110	temperature = 0.0
+111	
+112	# Optional configuration for specific LLM models
+113	[llm.vision]
+114	model = "gpt-4o"
+115	base_url = "https://api.openai.com/v1"
+116	api_key = "sk-..."  # Replace with your actual API key
+117	```
+118	
+119	### Image Search Configuration (Optional)
+120	
+121	To enable high-quality image search (Pexels) or news image search (Bing), set the following environment variables:
+122	
+123	```bash
+124	export PEXELS_API_KEY="your_pexels_key_here"
+125	export BING_API_KEY="your_bing_key_here"
+126	```
+127	
+128	If these keys are not provided, the agent will fallback to DuckDuckGo (free).t
 
 One line for run OpenManus:
 
