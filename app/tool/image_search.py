@@ -39,7 +39,12 @@ class ImageSearchTool(BaseTool):
             print(f"🔎 Searching Tavily Images for: {query}")
             client = TavilyClient(api_key=api_key)
             response = client.search(query, search_depth="basic", include_images=True, max_results=max_results)
-            return [img['url'] for img in response.get('images', [])]
+            images = response.get('images', [])
+            # Handle case where images are just a list of URL strings
+            if images and isinstance(images[0], str):
+                return images
+            # Handle case where images are dictionaries (e.g. {'url': '...'})
+            return [img.get('url', img) if isinstance(img, dict) else img for img in images]
         except Exception as e:
             print(f"⚠️ Tavily Image Search Failed: {e}")
             return []
