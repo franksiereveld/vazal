@@ -84,10 +84,10 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
 
     reflection_prompt = (
         f"Review this interaction:\n{context_summary}\n"
-        "Did the user provide a CORRECTION, PREFERENCE, or NEW CONSTRAINT in this follow-up? "
-        "Look for keywords like 'again', 'missing', 'verbose', 'not', 'instead'.\n"
-        "Examples: 'I meant Italian food', 'Use Python 3.10', 'Don't use that tool', 'Pictures are missing'.\n"
-        "If yes, output ONLY the lesson text (e.g. 'User prefers Italian food'). "
+        "Did the user provide a CORRECTION, PREFERENCE, or NEW RULE? "
+        "Look for phrases like 'Always...', 'Make sure...', 'Never...', 'I want...', 'Use...'.\n"
+        "Examples: 'Always create titles for each slide', 'Make sure to include a summary', 'Never use blue background'.\n"
+        "If yes, output ONLY the concise lesson text (e.g. 'Always include a Table of Contents in presentations'). "
         "If no specific lesson, output 'NO'."
     )
     
