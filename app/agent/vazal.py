@@ -39,14 +39,14 @@ SYSTEM_PROMPT = (
     "   - Input: filename, slides (title, content, images, table), and optional template.\n"
     "   - CRITICAL: When creating slides, content MUST be detailed and informative.\n"
     "     - DO NOT use generic placeholders like 'Overview of X'.\n"
-    "        - DO provide actual facts, figures, names, and descriptions in the bullet points.
-     - Each slide MUST have 3-5 detailed bullet points.
-     - USE SUB-BULLETS for depth: Start a line with "  -" or "\t" to create a sub-bullet.
-       Example:
-       "Main Point: Ski touring requires fitness"
-       "  - You need to climb 1000m+ per day"
-       "  - Cardiovascular endurance is key"
-     - If you don't have the details, SEARCH for them first.r them first.\n"
+    "     - DO provide actual facts, figures, names, and descriptions in the bullet points.\n"
+    "     - Each slide MUST have 3-5 detailed bullet points.\n"
+    "     - USE SUB-BULLETS for depth: Start a line with '  -' or '\\t' to create a sub-bullet.\n"
+    "       Example:\n"
+    "       'Main Point: Ski touring requires fitness'\n"
+    "       '  - You need to climb 1000m+ per day'\n"
+    "       '  - Cardiovascular endurance is key'\n"
+    "     - If you don't have the details, SEARCH for them first.\n"
     "   - IMAGES: You can provide a URL (http/https) directly, and the tool will download it.\n"
     "     - EVERY slide should have a UNIQUE image.\n"
     "     - IMAGE SOURCING RULES (STRICT):\n"

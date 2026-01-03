@@ -113,16 +113,33 @@ c101	2. Edit `config/config.toml` to add your API keys and customize settings:
 116	api_key = "sk-..."  # Replace with your actual API key
 117	```
 118	
-119	### Image Search Configuration (Optional)
-120	
-121	To enable high-quality image search (Pexels) or news image search (Bing), set the following environment variables:
-122	
-123	```bash
-124	export PEXELS_API_KEY="your_pexels_key_here"
-125	export BING_API_KEY="your_bing_key_here"
-126	```
-127	
-128	If these keys are not provided, the agent will fallback to DuckDuckGo (free).t
+119	### Image Search### Image Search Configuration (Optional)
+
+To enable high-quality image search (Pexels) or news image search (Bing), set the following environment variables:
+
+```bash
+export PEXELS_API_KEY="your_pexels_key_here"
+export BING_API_KEY="your_bing_key_here"
+```
+
+If these keys are not provided, the agent will fallback to DuckDuckGo (free).
+
+## 🧠 Memory & Learning System
+
+OpenManus now features a **Vector-Based Lesson System** that allows the agent to learn from your feedback and improve over time.
+
+### How it works
+1. **Storage**: Lessons are stored locally in a Vector Database (`data/chroma_db`) using **ChromaDB**.
+2. **Scopes**:
+   - **USER**: Personal preferences (e.g., "I prefer dark mode"). Always active.
+   - **ROLE**: Context-specific rules (e.g., "Chief of Staff: Always include an Executive Summary").
+   - **GENERAL**: Universal best practices.
+3. **Retrieval**: Before every task, the agent semantically searches its memory to find relevant lessons and injects them into its system prompt.
+
+### Managing Memory
+- The database is local and private.
+- To backup your memory, simply copy the `data/` folder.
+- To reset memory, delete the `data/` folder.o DuckDuckGo (free).t
 
 One line for run OpenManus:
 
