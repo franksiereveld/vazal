@@ -28,7 +28,7 @@ class TavilySearch(BaseTool):
         "required": ["query"],
     }
 
-    def execute(self, query: str, search_depth: str = "basic", include_answer: bool = False) -> ToolResult:
+    async def execute(self, query: str, search_depth: str = "basic", include_answer: bool = False) -> ToolResult:
         api_key = os.environ.get("TAVILY_API_KEY")
         
         if config.search_config:
