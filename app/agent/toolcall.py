@@ -7,6 +7,7 @@ from pydantic import Field
 from app.agent.react import ReActAgent
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger
+from app.debug_logger import log_tool_execution
 from app.prompt.toolcall import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.schema import TOOL_CHOICE_TYPE, AgentState, Message, ToolCall, ToolChoice
 from app.tool import CreateChatCompletion, Terminate, ToolCollection
@@ -179,6 +180,9 @@ class ToolCallAgent(ReActAgent):
             # Execute the tool
             logger.info(f"🔧 Activating tool: '{name}'...")
             result = await self.available_tools.execute(name=name, tool_input=args)
+            
+            # Log the tool execution
+            log_tool_execution(name, args, str(result))
 
             # Handle special tools
             await self._handle_special_tool(name=name, result=result)

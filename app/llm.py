@@ -22,6 +22,7 @@ from app.bedrock import BedrockClient
 from app.config import LLMSettings, config
 from app.exceptions import TokenLimitExceeded
 from app.logger import logger  # Assuming a logger is set up in your app
+from app.debug_logger import log_llm_interaction
 from app.schema import (
     ROLE_VALUES,
     TOOL_CHOICE_TYPE,
@@ -430,6 +431,9 @@ class LLM:
                     response.usage.prompt_tokens, response.usage.completion_tokens
                 )
 
+                # Log the interaction
+                log_llm_interaction(messages, response.choices[0].message.content)
+
                 return response.choices[0].message.content
 
             # Streaming request, For streaming, update estimated token count before making the request
@@ -447,6 +451,10 @@ class LLM:
 
             print()  # Newline after streaming
             full_response = "".join(collected_messages).strip()
+            
+            # Log the interaction
+            log_llm_interaction(messages, full_response)
+
             if not full_response:
                 raise ValueError("Empty response from streaming LLM")
 
@@ -743,6 +751,17 @@ class LLM:
             self.update_token_count(
                 response.usage.prompt_tokens, response.usage.completion_tokens
             )
+
+            # Log the interaction
+            msg = response.choices[0].message
+            response_data = {
+                "content": msg.content,
+                "tool_calls": [
+                    {"name": tc.function.name, "arguments": tc.function.arguments}
+                    for tc in msg.tool_calls
+                ] if msg.tool_calls else None
+            }
+            log_llm_interaction(messages, response_data)
 
             return response.choices[0].message
 
