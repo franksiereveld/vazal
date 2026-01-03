@@ -5,14 +5,15 @@ from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.shapes import PP_PLACEHOLDER
+from pptx.dml.color import RGBColor
 from app.tool.base import BaseTool, ToolResult
 
 class PPTCreatorTool(BaseTool):
     name: str = "ppt_creator"
     description: str = """
-    Creates a PowerPoint presentation with text and images.
+    Creates a PowerPoint presentation with text, images, quotes, and sources.
     * Supports using a custom template (.pptx or .potx).
-    * Can add multiple slides with titles, bullet points, and images.
+    * Can add multiple slides with titles, bullet points, images, quotes, and sources.
     * AUTOMATICALLY downloads images if you provide a URL (http/https).
     * Saves downloaded images to 'input/' and the final PPT to 'output/'.
     """
@@ -41,6 +42,15 @@ class PPTCreatorTool(BaseTool):
                         "image_path": {
                             "type": "string",
                             "description": "Local path OR URL (http/https) to an image.",
+                        },
+                        "quote": {
+                            "type": "string",
+                            "description": "A relevant quote to display if no image is available (Fallback).",
+                        },
+                        "sources": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "List of sources/citations for this slide.",
                         },
                     },
                     "required": ["title", "content"],
@@ -161,7 +171,7 @@ class PPTCreatorTool(BaseTool):
             if not any(term in last_slide_title for term in valid_conclusion_terms):
                 errors.append("The LAST slide MUST be a 'Conclusion', 'Next Steps', or 'Future Outlook'.")
 
-        # 4. Check for Unique Images
+        # 4. Check for Unique Images (if provided)
         image_urls = [s.get("image_path") for s in slides if s.get("image_path")]
         if len(image_urls) != len(set(image_urls)):
             errors.append("You reused the same image on multiple slides. Each slide MUST have a UNIQUE image.")
@@ -220,23 +230,18 @@ class PPTCreatorTool(BaseTool):
                     prs = Presentation()
                     print("ℹ️ No template provided and default 'PPT.pptx' not found. Using blank theme.")
 
-            # Clear existing slides from the template so we start fresh
-            if len(prs.slides) > 0:
-                print(f"ℹ️ Clearing {len(prs.slides)} existing slides from template...")
-                xml_slides = prs.slides._sldIdLst
-                slides_list = list(xml_slides)
-                for s in slides_list:
-                    xml_slides.remove(s)
-
+            # NOTE: Removed slide clearing logic to prevent file corruption.
+            # We will append new slides to the existing ones.
+            # If the user wants a clean start, they should provide a clean template.
+            
             # Find the best layout for content slides
             content_layout = self._find_best_layout(prs)
+            
+            all_sources = []
 
             for i, slide_data in enumerate(slides):
                 # Use Title Slide layout (usually 0) for the first slide if it's a standard template
                 # BUT for this specific user template, Layout 0 is the content layout.
-                # So we'll stick to the chosen content_layout for all slides to be safe, 
-                # or we could try to find a specific Title layout.
-                # For now, let's use the content_layout for everything to ensure the "Left Bullet / Right Image" structure is used.
                 
                 slide = prs.slides.add_slide(content_layout)
 
@@ -289,8 +294,11 @@ class PPTCreatorTool(BaseTool):
                         p.text = f"• {point}"
                         p.level = 0
 
-                # --- Add Image ---
+                # --- Add Image OR Quote ---
                 image_path = slide_data.get("image_path")
+                quote = slide_data.get("quote")
+                image_added = False
+
                 if image_path:
                     # Check if it's a URL
                     if image_path.startswith("http://") or image_path.startswith("https://"):
@@ -317,22 +325,16 @@ class PPTCreatorTool(BaseTool):
                             if pic_placeholder:
                                 # Robust insertion: Get coordinates, then add new picture
                                 try:
-                                    # Try standard insertion first (works for proper Picture placeholders)
                                     pic_placeholder.insert_picture(image_path)
+                                    image_added = True
                                 except AttributeError:
-                                    # Fallback for generic placeholders: Replace with new picture at same coords
-                                    print(f"ℹ️ Placeholder {pic_placeholder.name} doesn't support insert_picture. Replacing with new image shape.")
+                                    # Fallback for generic placeholders
                                     left = pic_placeholder.left
                                     top = pic_placeholder.top
                                     width = pic_placeholder.width
                                     height = pic_placeholder.height
-                                    
-                                    # Add the new picture
                                     slide.shapes.add_picture(image_path, left, top, width=width, height=height)
-                                    
-                                    # Remove the empty placeholder (optional, but cleaner)
-                                    # Note: Removing shapes from a slide is tricky in python-pptx, 
-                                    # so we just cover it up.
+                                    image_added = True
                             else:
                                 # Fallback: Add image to the right side
                                 print("ℹ️ No picture placeholder found. Adding manual image.")
@@ -340,10 +342,86 @@ class PPTCreatorTool(BaseTool):
                                 top = Inches(2)
                                 height = Inches(3.5)
                                 slide.shapes.add_picture(image_path, left, top, height=height)
+                                image_added = True
                         except Exception as e:
                             print(f"⚠️ Error adding image {image_path}: {e}")
                     else:
                         print(f"⚠️ WARNING: Skipping invalid or missing image path: {image_path}")
+
+                # --- Fallback: Add Quote if no image ---
+                if not image_added and quote:
+                    print(f"ℹ️ Adding quote fallback for slide '{slide_data.get('title')}'")
+                    # Try to find the picture placeholder to put the quote in
+                    quote_placeholder = None
+                    for shape in slide.placeholders:
+                        if shape.placeholder_format.idx == 11: # Right side
+                            quote_placeholder = shape
+                            break
+                    
+                    if quote_placeholder:
+                        left = quote_placeholder.left
+                        top = quote_placeholder.top
+                        width = quote_placeholder.width
+                        height = quote_placeholder.height
+                    else:
+                        left = Inches(5.5)
+                        top = Inches(2)
+                        width = Inches(4.0)
+                        height = Inches(3.5)
+                    
+                    # Create text box for quote
+                    txBox = slide.shapes.add_textbox(left, top, width, height)
+                    tf = txBox.text_frame
+                    tf.word_wrap = True
+                    p = tf.add_paragraph()
+                    p.text = f'"{quote}"'
+                    p.font.size = Pt(24)
+                    p.font.italic = True
+                    p.font.color.rgb = RGBColor(80, 80, 80) # Dark gray
+
+                # --- Add Sources Footer ---
+                sources = slide_data.get("sources", [])
+                if sources:
+                    all_sources.extend(sources)
+                    # Add footer text box
+                    left = Inches(0.5)
+                    top = Inches(7.0) # Bottom of slide
+                    width = Inches(9.0)
+                    height = Inches(0.5)
+                    txBox = slide.shapes.add_textbox(left, top, width, height)
+                    tf = txBox.text_frame
+                    p = tf.add_paragraph()
+                    p.text = "Sources: " + "; ".join(sources)
+                    p.font.size = Pt(10)
+                    p.font.color.rgb = RGBColor(100, 100, 100)
+
+            # --- Add References Slide ---
+            if all_sources:
+                ref_slide = prs.slides.add_slide(content_layout)
+                if ref_slide.shapes.title:
+                    ref_slide.shapes.title.text = "References"
+                
+                # Find body placeholder
+                body_shape = None
+                for shape in ref_slide.placeholders:
+                    if shape.placeholder_format.idx == 10:
+                        body_shape = shape
+                        break
+                if not body_shape: # Fallback
+                     for shape in ref_slide.placeholders:
+                        if shape.has_text_frame:
+                            body_shape = shape
+                            break
+                
+                if body_shape:
+                    tf = body_shape.text_frame
+                    tf.text = ""
+                    unique_sources = sorted(list(set(all_sources)))
+                    for source in unique_sources:
+                        p = tf.add_paragraph()
+                        p.text = source
+                        p.level = 0
+                        p.font.size = Pt(12)
 
             prs.save(output_path)
             return ToolResult(output=f"Presentation saved successfully to: {output_path}")
