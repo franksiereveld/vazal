@@ -15,6 +15,7 @@ from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.block_editor import BlockEditor
 from app.tool.ppt_creator import PPTCreatorTool  # Updated Import
 from app.tool.generate_image import GenerateImageTool
+from app.tool.image_search import ImageSearchTool
 from app.tool.fast_search import FastSearch
 from app.memory.lessons import LessonManager
 
@@ -43,14 +44,22 @@ SYSTEM_PROMPT = (
     "     - If you don't have the details, SEARCH for them first.\n"
     "   - IMAGES: You can provide a URL (http/https) directly, and the tool will download it.\n"
     "     - EVERY slide should have a UNIQUE image.\n"
-    "     - Use 'browser_use' with extraction_type='images' to find valid URLs.\n"
+    "     - Use 'image_search' to find valid image URLs instantly.\n"
     "     - OR use 'generate_image' to create a unique image for each slide.\n"
     "     - CRITICAL: DO NOT use 'source.unsplash.com' or fake URLs. They WILL FAIL.\n"
     "     - YOU MUST SEARCH or GENERATE images first.\n"
-    "6. 'generate_image': Generate custom images using DALL-E 3.\n"
+    "   - STRUCTURE: The presentation MUST include:\n"
+    "     1. Title Slide\n"
+    "     2. Executive Summary / Table of Contents (Overview of what will be covered)\n"
+    "     3. Content Slides (with images)\n"
+    "     4. Conclusion\n"
+    "6. 'image_search': Search for images using DuckDuckGo.\n"
+    "   - Use this to find real image URLs for presentations.\n"
+    "   - Input: query (e.g., 'surfing hawaii').\n"
+    "7. 'generate_image': Generate custom images using DALL-E 3.\n"
     "   - Use this if you cannot find good images via search.\n"
     "   - Input: prompt (detailed description).\n"
-    "7. 'terminate': Call this when DONE. \n"
+    "8. 'terminate': Call this when DONE. \n"
     "   - IMPORTANT: This tool takes NO arguments (or only 'status').\n"
     "   - BEFORE calling terminate, you MUST print/say the final answer to the user.\n\n"
 
@@ -87,6 +96,7 @@ class Vazal(ToolCallAgent):
             BlockEditor(),
             PPTCreatorTool(),  # Updated Instantiation
             GenerateImageTool(),
+            ImageSearchTool(),
             StrReplaceEditor(),
             AskHuman(),
             Terminate(),
