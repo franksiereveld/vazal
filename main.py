@@ -84,8 +84,10 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
     reflection_prompt = (
         f"Review this interaction:\n{context_summary}\n"
         "Did the user provide a CORRECTION, PREFERENCE, or NEW RULE? "
-        "Look for phrases like 'Always...', 'Make sure...', 'Never...', 'I want...', 'Use...'.\n"
-        "Also look for implicit corrections (e.g., user says 'The font is too small' -> Lesson: 'Use larger fonts').\n\n"
+        "Be PROACTIVE. Infer lessons from complaints or repeated requests.\n"
+        "- Complaint: 'The pictures are stretched' -> Lesson: 'Always maintain aspect ratio for images'.\n"
+        "- Request: 'Add more detail' -> Lesson: 'Provide detailed content with sub-bullets'.\n"
+        "- Correction: 'Use Tavily' -> Lesson: 'Prefer Tavily for search tasks'.\n\n"
         "If a lesson is found, output a JSON object with:\n"
         "- \"found\": true\n"
         "- \"content\": \"The concise lesson text\"\n"
