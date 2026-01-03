@@ -165,7 +165,7 @@ class PPTCreatorTool(BaseTool):
         # 2. Check for Executive Summary (Slide 2)
         if len(slides) > 1:
             slide2_title = slides[1].get("title", "").lower()
-            valid_summary_terms = ["summary", "agenda", "table of contents", "overview", "roadmap"]
+            valid_summary_terms = ["summary", "agenda", "table of contents", "overview", "roadmap", "table des matières", "sommaire"]
             if not any(term in slide2_title for term in valid_summary_terms):
                 errors.append("Slide 2 MUST be an 'Executive Summary', 'Agenda', or 'Table of Contents'.")
 
