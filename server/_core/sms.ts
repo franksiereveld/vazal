@@ -24,18 +24,29 @@ export async function sendSMSCode(phone: string, code: string): Promise<boolean>
     const fromNumber = process.env.TWILIO_PHONE_NUMBER;
     
     if (!fromNumber) {
+      console.error('[SMS] TWILIO_PHONE_NUMBER not configured');
       throw new Error('TWILIO_PHONE_NUMBER not configured');
     }
     
-    await client.messages.create({
+    console.log('[SMS] Attempting to send SMS');
+    console.log('[SMS] From:', fromNumber);
+    console.log('[SMS] To:', phone);
+    console.log('[SMS] Code:', code);
+    
+    const message = await client.messages.create({
       body: `Your vazal.ai verification code is: ${code}`,
       from: fromNumber,
       to: phone,
     });
     
+    console.log('[SMS] Message sent successfully. SID:', message.sid);
     return true;
-  } catch (error) {
-    console.error('[SMS] Failed to send code:', error);
+  } catch (error: any) {
+    console.error('[SMS] Failed to send code');
+    console.error('[SMS] Error code:', error.code);
+    console.error('[SMS] Error message:', error.message);
+    console.error('[SMS] More info:', error.moreInfo);
+    console.error('[SMS] Full error:', error);
     return false;
   }
 }

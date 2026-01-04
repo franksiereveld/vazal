@@ -26,15 +26,20 @@ export const appRouter = router({
     sendCode: publicProcedure
       .input(z.object({ phone: z.string().min(10) }))
       .mutation(async ({ input }) => {
-        const code = generateSMSCode();
-        await createSMSVerification(input.phone, code);
-        const sent = await sendSMSCode(input.phone, code);
-        
-        if (!sent) {
-          throw new Error("Failed to send SMS code");
+        try {
+          const code = generateSMSCode();
+          await createSMSVerification(input.phone, code);
+          const sent = await sendSMSCode(input.phone, code);
+          
+          if (!sent) {
+            throw new Error("Failed to send SMS code. Check server logs for details.");
+          }
+          
+          return { success: true };
+        } catch (error: any) {
+          console.error('[SMS Router] Error:', error);
+          throw new Error(error.message || "Failed to send SMS code");
         }
-        
-        return { success: true };
       }),
 
     verifyCode: publicProcedure
@@ -48,11 +53,24 @@ export const appRouter = router({
         
         // Find or create user
         const userId = await findOrCreateUserByPhone(input.phone);
-        const user = await getUserByOpenId(`phone_${input.phone}_${userId}`);
         
-        if (!user) {
+        // Get user by ID instead of openId
+        const db = await (await import("./db")).getDb();
+        if (!db) {
+          throw new Error("Database not available");
+        }
+        
+        const userResult = await db
+          .select()
+          .from((await import("../drizzle/schema")).users)
+          .where((await import("drizzle-orm")).eq((await import("../drizzle/schema")).users.id, userId))
+          .limit(1);
+        
+        if (userResult.length === 0) {
           throw new Error("User creation failed");
         }
+        
+        const user = userResult[0];
         
         // Create session
         const token = await sdk.createSessionToken(user.openId, { name: user.name || "" });

@@ -7,8 +7,10 @@
 - [x] Implement send OTP endpoint
 - [x] Implement verify OTP endpoint
 - [x] Build SMS login UI component
-- [ ] Test SMS login flow
-- [ ] Add Twilio credentials to environment
+- [x] Test SMS login flow
+- [x] Add Twilio credentials to environment
+- [x] Fix account creation bug
+- [x] Test with Swiss phone number
 
 ## Docker Deployment
 - [x] Create Dockerfile
