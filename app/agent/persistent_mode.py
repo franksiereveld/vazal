@@ -12,7 +12,7 @@ async def run_persistent_mode():
     """
     # Import here to avoid circular dependencies
     from app.agent.vazal import Vazal
-    from app.agent.classify_intent import classify_intent
+    from app.schema import Message
     
     print("🤖 Vazal is waking up...", flush=True)
     
@@ -50,14 +50,35 @@ async def run_persistent_mode():
                 
                 print(f"🚀 Starting Task: \"{prompt}\"", flush=True)
                 
-                # Classify intent (chat vs task)
-                intent = await classify_intent(prompt, agent.memory)
-                print(f"✨ Vazal's thoughts: Classified as {intent}", flush=True)
+                # Classify intent (chat vs task) - inline logic from main.py
+                context_str = ""
+                if agent.memory.messages:
+                    recent = agent.memory.messages[-3:]
+                    for m in recent:
+                        role = "User" if m.role == "user" else "Assistant" if m.role == "assistant" else "System"
+                        content = m.content if m.content else "[Tool Call/Result]"
+                        context_str += f"{role}: {content}\n"
+                
+                classifier_prompt = (
+                    f"Analyze this user prompt in context:\n"
+                    f"--- CONTEXT START ---\n{context_str}--- CONTEXT END ---\n\n"
+                    f"User Prompt: '{prompt}'\n\n"
+                    "Is this a simple CHAT greeting/question (e.g. 'hi', 'how are you') "
+                    "OR a TASK/CORRECTION requiring action (e.g. 'find X', 'fix that', 'it is missing pictures')?\n"
+                    "CRITICAL: If the user is correcting a previous task (e.g. 'you forgot X', 'try again'), classify as TASK.\n"
+                    "Output format:\n"
+                    "TYPE: [CHAT or TASK]\n"
+                    "RESPONSE: [If CHAT, write the response here. If TASK, write the task description]"
+                )
+                
+                classification = await agent.llm.ask([Message.user_message(classifier_prompt)], stream=False)
+                print(f"✨ Vazal's thoughts: {classification}", flush=True)
                 
                 # Process based on intent
-                if intent == "CHAT":
-                    # Quick chat response using LLM directly
-                    response = await agent.chat_response(prompt)
+                if "TYPE: CHAT" in classification:
+                    # Extract the chat response
+                    parts = classification.split("RESPONSE:")
+                    response = parts[1].strip() if len(parts) > 1 else classification
                 else:
                     # Full agent execution with tools
                     response = await agent.run(prompt)
