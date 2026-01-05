@@ -18,10 +18,9 @@ async def run_persistent_mode():
     
     # Initialize agent ONCE
     agent = Vazal()
+    print("✅ Ready!", flush=True)
     
     try:
-        await agent.__aenter__()  # Initialize browser, database, etc.
-        print("✅ Ready!", flush=True)
         
         # Event loop - process requests from stdin
         while True:
@@ -100,7 +99,7 @@ async def run_persistent_mode():
     finally:
         # Cleanup
         print("🔄 Shutting down Vazal...", flush=True)
-        await agent.__aexit__(None, None, None)
+        # No explicit cleanup needed - Vazal handles it internally
         print("👋 Goodbye!", flush=True)
 
 
