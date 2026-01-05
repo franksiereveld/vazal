@@ -56,10 +56,10 @@ cat > .env << 'EOF'
 # Database (SQLite for local testing)
 DATABASE_URL=file:./local.db
 
-# Twilio SMS Configuration
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
+# Twilio SMS Configuration (get from https://console.twilio.com)
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_auth_token_here
+TWILIO_PHONE_NUMBER=+1234567890
 
 # JWT Secret (generate a random string)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production

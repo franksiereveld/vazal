@@ -24,22 +24,28 @@ export async function* executeVazal(
   // Default to ~/OpenManus on Mac, or use VAZAL_PATH env variable
   const vazalPath = process.env.VAZAL_PATH || "/Users/I048134/OpenManus";
   
-  // Spawn Python process to run Vazal
-  const pythonProcess = spawn("python3", ["main.py", "--prompt", prompt], {
+  // Spawn Python process to run Vazal in interactive mode
+  const pythonProcess = spawn("python3", ["main.py"], {
     cwd: vazalPath,
     env: {
       ...process.env,
       PYTHONUNBUFFERED: "1", // Disable Python output buffering
     },
   });
+  
+  // Send the prompt to stdin (interactive input)
+  pythonProcess.stdin.write(prompt + "\n");
+  pythonProcess.stdin.end();
 
   let buffer = "";
+  let allOutput: string[] = [];
   let finished = false;
 
   // Handle stdout (agent output)
   pythonProcess.stdout.on("data", (data) => {
     const text = data.toString();
     buffer += text;
+    allOutput.push(text);
     
     // Parse agent output (look for thought/action/observation markers)
     const lines = buffer.split("\n");
@@ -73,9 +79,10 @@ export async function* executeVazal(
     });
   });
 
-  // Return final response
+  // Return final response with all captured output
+  const finalOutput = allOutput.join("").trim() || buffer.trim() || "No output received from Vazal AI. Check server logs for errors.";
   yield {
-    content: buffer || "Task completed successfully.",
+    content: finalOutput,
     finished: true,
   };
 }
