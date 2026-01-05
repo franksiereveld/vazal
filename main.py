@@ -143,6 +143,7 @@ async def suggest_and_save_lesson(agent, prompt, final_answer):
 async def main():
     parser = argparse.ArgumentParser(description="Vazal AI Agent")
     parser.add_argument("--prompt", type=str, help="Initial prompt")
+    parser.add_argument("--persistent", action="store_true", help="Run in persistent mode for web integration")
     parser.add_argument("--verbose", action="store_true", help="Show detailed logs in console")
     args = parser.parse_args()
 
@@ -154,6 +155,12 @@ async def main():
         logger.add("error.log", level="ERROR", rotation="10 MB", mode="w", backtrace=True, diagnose=True)
         enable_console_logging()
         print("🔧 Verbose mode enabled - Debug logs will appear in console")
+
+    # Handle persistent mode
+    if args.persistent:
+        from app.agent.persistent_mode import run_persistent_mode
+        await run_persistent_mode()
+        return
 
     # Initialize Agent
     print("🤖 Vazal is waking up...")
