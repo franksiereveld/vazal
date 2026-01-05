@@ -24,12 +24,13 @@ export async function* executeVazal(
   // Default to ~/OpenManus on Mac, or use VAZAL_PATH env variable
   const vazalPath = process.env.VAZAL_PATH || "/Users/I048134/OpenManus";
   
-  // Spawn Python process to run Vazal with --prompt argument
-  // Use detached mode to prevent event loop conflicts
-  const pythonProcess = spawn("python3", ["main.py", "--prompt", prompt], {
-    cwd: vazalPath,
+  // Use wrapper script to isolate Python event loop
+  const wrapperPath = path.join(__dirname, "vazal_wrapper.py");
+  
+  const pythonProcess = spawn("python3", [wrapperPath, prompt], {
     env: {
       ...process.env,
+      VAZAL_PATH: vazalPath,
       PYTHONUNBUFFERED: "1", // Disable Python output buffering
       PYTHONIOENCODING: "utf-8", // Ensure UTF-8 encoding
     },
