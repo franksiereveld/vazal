@@ -7,7 +7,6 @@ import { Send, Download, FileText, LogOut } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
-import { isSimpleQuestion } from "@shared/chatDetection";
 import { toast } from "sonner";
 
 export default function Agent() {
@@ -48,7 +47,6 @@ export default function Agent() {
   }
 
   const vazalExecute = trpc.vazal.execute.useMutation();
-  const vazalChat = trpc.vazal.chat.useMutation();
 
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return;
@@ -59,13 +57,8 @@ export default function Agent() {
     setIsProcessing(true);
 
     try {
-      // Detect if it's a simple question or complex task
-      const isSimple = isSimpleQuestion(userMessage);
-      
-      // Use fast chat for simple questions, full agent for complex tasks
-      const response = isSimple 
-        ? await vazalChat.mutateAsync({ prompt: userMessage })
-        : await vazalExecute.mutateAsync({ prompt: userMessage });
+      // Vazal handles chat vs task detection internally
+      const response = await vazalExecute.mutateAsync({ prompt: userMessage });
       
       setMessages(prev => [...prev, { 
         role: 'assistant', 

@@ -42,7 +42,6 @@
 - [ ] Add download button for agent results/files
 
 ## Performance Optimizations
-- [x] Enhance chat vs task detection (route simple questions to LLM chat)
+- [x] Use Vazal's built-in LLM-based chat vs task detection (removed duplicate logic)
 - [ ] Implement persistent Vazal process manager (keep Python warm)
 - [ ] Pre-warm browser and database tools on startup
-- [x] Add direct LLM chat endpoint for instant responses
