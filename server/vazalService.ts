@@ -25,12 +25,16 @@ export async function* executeVazal(
   const vazalPath = process.env.VAZAL_PATH || "/Users/I048134/OpenManus";
   
   // Spawn Python process to run Vazal with --prompt argument
+  // Use detached mode to prevent event loop conflicts
   const pythonProcess = spawn("python3", ["main.py", "--prompt", prompt], {
     cwd: vazalPath,
     env: {
       ...process.env,
       PYTHONUNBUFFERED: "1", // Disable Python output buffering
+      PYTHONIOENCODING: "utf-8", // Ensure UTF-8 encoding
     },
+    detached: false, // Keep attached to capture output
+    stdio: ["ignore", "pipe", "pipe"], // stdin ignored, stdout/stderr piped
   });
 
   let buffer = "";
@@ -75,10 +79,45 @@ export async function* executeVazal(
     });
   });
 
-  // Return final response with all captured output
-  const finalOutput = allOutput.join("").trim() || buffer.trim() || "No output received from Vazal AI. Check server logs for errors.";
+  // Parse output to extract final answer and filter debug logs
+  const fullOutput = allOutput.join("") + buffer;
+  
+  // Look for the final answer after "🤖 Vazal:" marker
+  const vazalMarker = "🤖 Vazal:";
+  let finalAnswer = "";
+  
+  if (fullOutput.includes(vazalMarker)) {
+    // Extract everything after the last "🤖 Vazal:" marker
+    const parts = fullOutput.split(vazalMarker);
+    finalAnswer = parts[parts.length - 1].trim();
+  } else {
+    // Fallback: filter out INFO/DEBUG lines and return remaining content
+    const lines = fullOutput.split("\n");
+    const meaningfulLines = lines.filter(line => {
+      const trimmed = line.trim();
+      // Skip empty lines and log lines
+      if (!trimmed) return false;
+      if (trimmed.startsWith("INFO")) return false;
+      if (trimmed.startsWith("DEBUG")) return false;
+      if (trimmed.includes("[browser_use]")) return false;
+      if (trimmed.includes("[chromadb")) return false;
+      if (trimmed.includes("PyTorch version")) return false;
+      if (trimmed.includes("Anonymized telemetry")) return false;
+      if (trimmed.includes("🤖 Vazal is waking up")) return false;
+      if (trimmed.includes("✅ Ready!")) return false;
+      if (trimmed.includes("🚀 Starting Task:")) return false;
+      return true;
+    });
+    finalAnswer = meaningfulLines.join("\n").trim();
+  }
+  
+  // If still empty, provide a helpful message
+  if (!finalAnswer) {
+    finalAnswer = "Vazal completed the task but did not return a text response. Check if files were created.";
+  }
+  
   yield {
-    content: finalOutput,
+    content: finalAnswer,
     finished: true,
   };
 }

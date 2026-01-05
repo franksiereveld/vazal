@@ -36,5 +36,7 @@
 - [x] Fix white-on-white text in user message bubbles
 - [x] Fix logout error
 - [x] Add name field to SMS login form
-- [ ] Integrate with Vazal AI API (replace placeholder)
+- [x] Fix Vazal asyncio event loop conflict when running from Node.js
+- [x] Filter debug logs from Vazal output, only show final answer
+- [ ] Implement interactive mode with persistent Python process for follow-up questions
 - [ ] Add download button for agent results/files
