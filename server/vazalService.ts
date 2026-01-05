@@ -24,18 +24,14 @@ export async function* executeVazal(
   // Default to ~/OpenManus on Mac, or use VAZAL_PATH env variable
   const vazalPath = process.env.VAZAL_PATH || "/Users/I048134/OpenManus";
   
-  // Spawn Python process to run Vazal in interactive mode
-  const pythonProcess = spawn("python3", ["main.py"], {
+  // Spawn Python process to run Vazal with --prompt argument
+  const pythonProcess = spawn("python3", ["main.py", "--prompt", prompt], {
     cwd: vazalPath,
     env: {
       ...process.env,
       PYTHONUNBUFFERED: "1", // Disable Python output buffering
     },
   });
-  
-  // Send the prompt to stdin (interactive input)
-  pythonProcess.stdin.write(prompt + "\n");
-  pythonProcess.stdin.end();
 
   let buffer = "";
   let allOutput: string[] = [];
