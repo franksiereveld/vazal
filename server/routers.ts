@@ -8,6 +8,8 @@ import { createSMSVerification, verifySMSCode, findOrCreateUserByPhone } from ".
 import { getUserByOpenId } from "./db";
 import { sdk } from "./_core/sdk";
 import { executeVazalCommand } from "./vazalService";
+import { isSimpleQuestion } from "../shared/chatDetection";
+import Anthropic from "@anthropic-ai/sdk";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -83,6 +85,36 @@ export const appRouter = router({
   }),
 
   vazal: router({
+    // Fast chat endpoint for simple questions
+    chat: publicProcedure
+      .input(z.object({ prompt: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        try {
+          const anthropic = new Anthropic({
+            apiKey: process.env.ANTHROPIC_API_KEY,
+          });
+
+          const message = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-20241022",
+            max_tokens: 1024,
+            messages: [{
+              role: "user",
+              content: input.prompt,
+            }],
+          });
+
+          const result = message.content[0].type === "text" 
+            ? message.content[0].text 
+            : "Unable to generate response";
+
+          return { success: true, result };
+        } catch (error: any) {
+          console.error('[Vazal Chat] Error:', error);
+          throw new Error(error.message || "Failed to process chat");
+        }
+      }),
+
+    // Full agent execution for complex tasks
     execute: publicProcedure
       .input(z.object({ prompt: z.string().min(1) }))
       .mutation(async ({ input }) => {
