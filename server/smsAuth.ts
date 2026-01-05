@@ -52,7 +52,7 @@ export async function verifySMSCode(phone: string, code: string): Promise<boolea
   return true;
 }
 
-export async function findOrCreateUserByPhone(phone: string): Promise<number> {
+export async function findOrCreateUserByPhone(phone: string, name?: string): Promise<number> {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");
@@ -75,11 +75,12 @@ export async function findOrCreateUserByPhone(phone: string): Promise<number> {
     return existing[0].id;
   }
 
-  // Create new user
-  const openId = `phone_${phone}_${Date.now()}`;
+  // Create new user with consistent openId (no timestamp so it stays the same)
+  const openId = `phone_${phone}`;
   await db.insert(users).values({
     openId,
     phone,
+    name: name || "",
     loginMethod: "sms",
     role: "user",
     lastSignedIn: new Date(),

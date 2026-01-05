@@ -25,3 +25,16 @@
 - [x] Implement send OTP endpoint
 - [x] Implement verify OTP endpoint
 - [x] Build SMS login UI component
+
+## Dual Database Support
+- [ ] Create schema that works with both SQLite and MySQL
+- [ ] Update database queries to detect and use correct syntax
+- [ ] Test with SQLite on Mac
+- [ ] Document MySQL setup for 3090 PC
+
+## Agent Interface Improvements
+- [x] Fix white-on-white text in user message bubbles
+- [x] Fix logout error
+- [x] Add name field to SMS login form
+- [ ] Integrate with Vazal AI API (replace placeholder)
+- [ ] Add download button for agent results/files

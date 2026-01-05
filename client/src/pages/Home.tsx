@@ -4,14 +4,23 @@ import { Card } from "@/components/ui/card";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ArrowRight, Cpu, Database, Zap, Moon, Sun, Server, Sparkles, Monitor } from "lucide-react";
 import { motion } from "framer-motion";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function Home() {
   // The userAuth hooks provides authentication state
   // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
   let { user, loading, error, isAuthenticated, logout } = useAuth();
+  const [, setLocation] = useLocation();
 
   const { theme, toggleTheme } = useTheme();
+
+  const handleStartAgent = () => {
+    if (isAuthenticated) {
+      setLocation("/agent");
+    } else {
+      setLocation("/login");
+    }
+  };
 
   const fadeIn = {
     initial: { opacity: 0, y: 20 },
@@ -88,7 +97,11 @@ export default function Home() {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Button size="lg" className="text-base px-8 h-12 group">
+              <Button 
+                size="lg" 
+                className="text-base px-8 h-12 group"
+                onClick={handleStartAgent}
+              >
                 Start Your Agent &gt;
               </Button>
               <Link href="/mission">

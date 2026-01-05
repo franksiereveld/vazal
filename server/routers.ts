@@ -7,6 +7,7 @@ import { generateSMSCode, sendSMSCode } from "./_core/sms";
 import { createSMSVerification, verifySMSCode, findOrCreateUserByPhone } from "./smsAuth";
 import { getUserByOpenId } from "./db";
 import { sdk } from "./_core/sdk";
+import { executeVazalCommand } from "./vazalService";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -43,7 +44,7 @@ export const appRouter = router({
       }),
 
     verifyCode: publicProcedure
-      .input(z.object({ phone: z.string().min(10), code: z.string().length(6) }))
+      .input(z.object({ phone: z.string().min(10), code: z.string().length(6), name: z.string().optional() }))
       .mutation(async ({ input, ctx }) => {
         const isValid = await verifySMSCode(input.phone, input.code);
         
@@ -52,7 +53,7 @@ export const appRouter = router({
         }
         
         // Find or create user
-        const userId = await findOrCreateUserByPhone(input.phone);
+        const userId = await findOrCreateUserByPhone(input.phone, input.name);
         
         // Get user by ID instead of openId
         const db = await (await import("./db")).getDb();
@@ -81,12 +82,19 @@ export const appRouter = router({
       }),
   }),
 
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  vazal: router({
+    execute: publicProcedure
+      .input(z.object({ prompt: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        try {
+          const result = await executeVazalCommand(input.prompt);
+          return { success: true, result };
+        } catch (error: any) {
+          console.error('[Vazal Router] Error:', error);
+          throw new Error(error.message || "Failed to execute Vazal command");
+        }
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

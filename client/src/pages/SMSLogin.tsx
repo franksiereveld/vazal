@@ -8,9 +8,11 @@ import { useLocation } from "wouter";
 
 export default function SMSLogin() {
   const [, setLocation] = useLocation();
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
+  const utils = trpc.useUtils();
 
   const sendCode = trpc.sms.sendCode.useMutation({
     onSuccess: () => {
@@ -23,9 +25,14 @@ export default function SMSLogin() {
   });
 
   const verifyCode = trpc.sms.verifyCode.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Login successful!");
-      setLocation("/");
+      // Invalidate auth cache to force fresh data
+      await utils.auth.me.invalidate();
+      // Wait a moment for cookie to be set, then redirect to agent
+      setTimeout(() => {
+        window.location.href = "/agent";
+      }, 100);
     },
     onError: (error) => {
       toast.error(error.message || "Invalid code");
@@ -34,6 +41,10 @@ export default function SMSLogin() {
 
   const handleSendCode = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
     if (phone.length < 10) {
       toast.error("Please enter a valid phone number");
       return;
@@ -47,7 +58,7 @@ export default function SMSLogin() {
       toast.error("Please enter a 6-digit code");
       return;
     }
-    verifyCode.mutate({ phone, code });
+    verifyCode.mutate({ phone, code, name });
   };
 
   return (
@@ -62,6 +73,19 @@ export default function SMSLogin() {
 
         {step === "phone" ? (
           <form onSubmit={handleSendCode} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="name" className="text-sm font-medium">
+                Name
+              </label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <label htmlFor="phone" className="text-sm font-medium">
                 Phone Number

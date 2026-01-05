@@ -35,9 +35,9 @@ MYSQL_PASSWORD=vazalpassword
 JWT_SECRET=your-super-secret-jwt-key-change-this
 
 # Twilio Configuration
-TWILIO_ACCOUNT_SID=AC396847377a634d506212dc0cb8897860
-TWILIO_AUTH_TOKEN=0660830c3ac60eb4dad1b4e49d315844
-TWILIO_PHONE_NUMBER=+41793016223
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
 
 # Application Configuration
 VITE_APP_ID=vazal-ai

@@ -68,6 +68,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.lastSignedIn = new Date();
     }
 
+    // MySQL's onDuplicateKeyUpdate
     await db.insert(users).values(values).onDuplicateKeyUpdate({
       set: updateSet,
     });

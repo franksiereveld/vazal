@@ -8,6 +8,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "@/pages/Home";
 import Mission from "@/pages/Mission";
 import SMSLogin from "@/pages/SMSLogin";
+import Agent from "@/pages/Agent";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/mission" component={Mission} />
       <Route path="/login" component={SMSLogin} />
+      <Route path="/agent" component={Agent} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />

@@ -7,6 +7,11 @@ export const getLoginUrl = () => {
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
   const state = btoa(redirectUri);
 
+  // Return empty string if OAuth is not configured (using SMS login instead)
+  if (!oauthPortalUrl || !appId) {
+    return '';
+  }
+
   const url = new URL(`${oauthPortalUrl}/app-auth`);
   url.searchParams.set("appId", appId);
   url.searchParams.set("redirectUri", redirectUri);

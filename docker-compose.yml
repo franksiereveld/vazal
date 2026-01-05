@@ -1,36 +1,42 @@
 version: '3.8'
 
 services:
+  db:
+    image: mariadb:11
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: vazal
+      MYSQL_USER: vazal
+      MYSQL_PASSWORD: vazalpassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
   app:
     build: .
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
-      - VITE_APP_ID=${VITE_APP_ID:-vazal-ai}
-      - VITE_APP_TITLE=${VITE_APP_TITLE:-vazal.ai}
-      - OAUTH_SERVER_URL=${OAUTH_SERVER_URL:-https://api.manus.im}
-      - VITE_OAUTH_PORTAL_URL=${VITE_OAUTH_PORTAL_URL:-https://portal.manus.im}
+      NODE_ENV: production
+      DATABASE_URL: mysql://vazal:vazalpassword@db:3306/vazal
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-key}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_PHONE_NUMBER: ${TWILIO_PHONE_NUMBER}
+      VITE_APP_TITLE: vazal.ai
+      VITE_APP_LOGO: /logo.svg
+      OAUTH_SERVER_URL: https://api.manus.im
+      VITE_OAUTH_PORTAL_URL: https://portal.manus.im
     depends_on:
-      - db
-    restart: unless-stopped
-
-  db:
-    image: mysql:8.0
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-rootpassword}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-vazal}
-      - MYSQL_USER=${MYSQL_USER:-vazal}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-vazalpassword}
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
