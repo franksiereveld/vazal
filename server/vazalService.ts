@@ -1,5 +1,11 @@
 import { spawn } from "child_process";
 import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface VazalMessage {
   role: "user" | "assistant" | "system";
@@ -26,6 +32,7 @@ export async function* executeVazal(
   
   // Use wrapper script to isolate Python event loop
   const wrapperPath = path.join(__dirname, "vazal_wrapper.py");
+  console.log('[Vazal] Using wrapper at:', wrapperPath);
   
   const pythonProcess = spawn("python3", [wrapperPath, prompt], {
     env: {
