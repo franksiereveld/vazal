@@ -169,8 +169,20 @@ async def main():
 
     # If prompt provided via CLI
     if args.prompt:
-        print(f"🚀 Starting Task: \"{args.prompt}\"")
-        await agent.run(args.prompt)
+        # Classify intent first (same as interactive mode)
+        classification = await classify_intent(agent, args.prompt)
+        
+        if "TYPE: CHAT" in classification:
+            # Extract and print the chat response
+            parts = classification.split("RESPONSE:")
+            response = parts[1].strip() if len(parts) > 1 else classification
+            print(f"\n🤖 Vazal: {response}\n")
+        else:
+            # It's a TASK - run the agent
+            print(f"🚀 Starting Task: \"{args.prompt}\"")
+            await agent.run(args.prompt)
+        
+        await agent.cleanup()
         return
 
     # Interactive Loop
