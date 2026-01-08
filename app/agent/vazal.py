@@ -101,7 +101,8 @@ SYSTEM_PROMPT = (
 
 NEXT_STEP_PROMPT = """
 Review the previous tool output.
-- If the task is complete, STATE the final answer clearly, and THEN use `terminate`.
+- If the task is complete, STATE the final answer clearly AND call `terminate` IN THE SAME RESPONSE.
+- CRITICAL: Do NOT say "I'll conclude now" without calling terminate. You MUST call terminate immediately.
 - If `fast_search` failed, try `browser_use` with a search engine URL (e.g. google.com).
 - DO NOT just summarize without finishing the job.
 """

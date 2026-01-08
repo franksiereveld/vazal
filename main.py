@@ -181,6 +181,41 @@ async def main():
             # It's a TASK - run the agent
             print(f"🚀 Starting Task: \"{args.prompt}\"")
             await agent.run(args.prompt)
+            
+            # Extract & Print Final Answer (same logic as interactive mode)
+            final_answer = "✅ Task Completed."
+            
+            if agent.memory.messages:
+                for msg in reversed(agent.memory.messages):
+                    if msg.role == "assistant":
+                        # Priority 1: Explicit output in terminate() call
+                        terminate_output = None
+                        if msg.tool_calls:
+                            for tc in msg.tool_calls:
+                                if tc.function.name == "terminate":
+                                    try:
+                                        args_json = json.loads(tc.function.arguments)
+                                        if args_json.get("output"):
+                                            terminate_output = args_json.get("output")
+                                    except: pass
+                        
+                        if terminate_output:
+                            final_answer = terminate_output
+                            break
+                        
+                        # Priority 2: The thought/content of the message
+                        if msg.content:
+                            final_answer = msg.content
+                            break
+                
+                # Fallback: Look for last tool output
+                if final_answer == "✅ Task Completed.":
+                    for msg in reversed(agent.memory.messages):
+                        if msg.role == "tool" and msg.content:
+                            final_answer = f"✅ Task Completed. Last Tool Output:\n\n{msg.content[:2000]}..."
+                            break
+            
+            print(f"\n🤖 Vazal: {final_answer}\n")
         
         await agent.cleanup()
         return
