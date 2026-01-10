@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Send, LogOut, Check, X, Loader2, Zap, Paperclip, Download, FileText } from "lucide-react";
+import { Send, LogOut, Check, X, Loader2, Zap, Paperclip, Download, FileText, Monitor } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { LatexRenderer } from "@/components/LatexRenderer";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
+import { ScreenViewer } from "@/components/ScreenViewer";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PendingPlan {
@@ -36,6 +37,7 @@ export default function Agent() {
   const [quickMode, setQuickMode] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [showScreenViewer, setShowScreenViewer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -384,6 +386,25 @@ export default function Agent() {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={showScreenViewer ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowScreenViewer(!showScreenViewer)}
+                      className="gap-2"
+                    >
+                      <Monitor className="w-4 h-4" />
+                      Screen
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-sm">View Vazal's browser screen in real-time</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <span className="text-sm text-muted-foreground">
                 {user?.phone || user?.name || 'User'}
               </span>
@@ -595,6 +616,11 @@ export default function Agent() {
           </div>
         </footer>
       </div>
+      {/* Screen Viewer Panel */}
+      <ScreenViewer
+        isVisible={showScreenViewer}
+        onToggle={() => setShowScreenViewer(!showScreenViewer)}
+      />
     </div>
   );
 }

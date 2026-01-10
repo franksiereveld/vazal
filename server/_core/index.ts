@@ -236,6 +236,67 @@ async function startServer() {
     }
   });
 
+  // Screenshot endpoint for screen viewer
+  app.get("/api/screen/screenshot", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      // Look for latest screenshot in browser_use or screenshots folder
+      const screenshotPaths = [
+        path.join(getVazalPath(), "screenshots"),
+        path.join(getVazalPath(), "browser_screenshots"),
+        path.join(getVazalPath(), ".browser_use", "screenshots"),
+        path.join(os.tmpdir(), "vazal_screenshots"),
+      ];
+
+      let latestScreenshot: { path: string; mtime: Date } | null = null;
+
+      for (const screenshotDir of screenshotPaths) {
+        if (!fs.existsSync(screenshotDir)) continue;
+        
+        try {
+          const files = fs.readdirSync(screenshotDir);
+          for (const file of files) {
+            if (!file.match(/\.(png|jpg|jpeg)$/i)) continue;
+            
+            const filePath = path.join(screenshotDir, file);
+            const stat = fs.statSync(filePath);
+            
+            // Only consider screenshots from last 5 minutes
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            if (stat.mtime < fiveMinutesAgo) continue;
+            
+            if (!latestScreenshot || stat.mtime > latestScreenshot.mtime) {
+              latestScreenshot = { path: filePath, mtime: stat.mtime };
+            }
+          }
+        } catch (e) {
+          // Skip directories we can't read
+        }
+      }
+
+      if (!latestScreenshot) {
+        res.status(404).json({ error: "No recent screenshot available" });
+        return;
+      }
+
+      // Serve the screenshot
+      const ext = path.extname(latestScreenshot.path).toLowerCase();
+      const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+      
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.sendFile(latestScreenshot.path);
+    } catch (error: any) {
+      console.error("[Screenshot Error]", error);
+      res.status(500).json({ error: error.message || "Failed to get screenshot" });
+    }
+  });
+
   // SSE endpoint for streaming Vazal responses with activity updates
   app.post("/api/vazal/stream", async (req, res) => {
     try {
