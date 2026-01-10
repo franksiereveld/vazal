@@ -1,6 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Send, Download, FileText, LogOut } from "lucide-react";
@@ -17,7 +16,10 @@ export default function Agent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when messages change (MUST be before any returns)
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const vazalExecute = trpc.vazal.execute.useMutation();
+
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -28,25 +30,6 @@ export default function Agent() {
       setLocation("/");
     }
   }, [loading, isAuthenticated, setLocation]);
-
-  // Show loading state while checking authentication
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // If not authenticated after loading, the useEffect will redirect
-  if (!isAuthenticated) {
-    return null;
-  }
-
-  const vazalExecute = trpc.vazal.execute.useMutation();
 
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return;
@@ -84,16 +67,21 @@ export default function Agent() {
     }
   };
 
+  // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
+  // If not authenticated after loading, the useEffect will redirect
   if (!isAuthenticated) {
-    return null; // Will redirect via useEffect
+    return null;
   }
 
   return (
