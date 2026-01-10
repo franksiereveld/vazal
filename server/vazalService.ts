@@ -12,6 +12,11 @@ export interface VazalResponse {
   files?: string[];
 }
 
+export interface ExecuteResult {
+  result: string;
+  files: string[];
+}
+
 export interface ClassifyResult {
   type: "CHAT" | "TASK";
   response?: string;
@@ -115,19 +120,50 @@ export async function generatePlan(prompt: string): Promise<PlanResult> {
 
 /**
  * Execute Vazal AI agent with a user prompt
- * Returns the final response after agent completes
+ * Returns the final response with files after agent completes
  */
 export async function executeVazalCommand(
   prompt: string,
   userId: number
-): Promise<string> {
+): Promise<ExecuteResult> {
   try {
     const result = await runWrapper(prompt, "execute");
-    return extractFinalAnswer(result);
+    
+    // Try to parse as JSON (new format)
+    try {
+      const parsed = JSON.parse(result);
+      if (parsed.type === "result") {
+        return {
+          result: parsed.content || "Task completed.",
+          files: parsed.files || []
+        };
+      }
+    } catch {
+      // Not JSON, use legacy parsing
+    }
+    
+    // Fallback to legacy parsing
+    return {
+      result: extractFinalAnswer(result),
+      files: extractFiles(result)
+    };
   } catch (error) {
     console.error('[Vazal Error]', error);
     throw new Error(`Vazal execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+/**
+ * Extract file paths from output
+ */
+function extractFiles(output: string): string[] {
+  const filePathRegex = /(?:saved|created|output).*?(?:to|at|:)?\s*([\w\/\.\-_]+\.(?:pptx?|docx?|pdf|xlsx?|png|jpg|jpeg|csv|txt|html))/gi;
+  const files: string[] = [];
+  let match;
+  while ((match = filePathRegex.exec(output)) !== null) {
+    files.push(match[1].split('/').pop() || match[1]);
+  }
+  return [...new Set(files)]; // Remove duplicates
 }
 
 /**

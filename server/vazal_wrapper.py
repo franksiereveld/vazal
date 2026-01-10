@@ -142,17 +142,48 @@ try:
                 "estimated_time": "30 seconds"
             }
     
-    async def execute_task(agent, prompt: str) -> str:
-        """Execute the full agent task"""
+    def find_output_files():
+        """Find recently created files in Vazal output directories"""
+        import glob
+        import time
+        
+        output_dirs = [
+            os.path.expanduser("~/OpenManus/output"),
+            os.path.expanduser("~/OpenManus/workspace"),
+            os.path.expanduser("~/OpenManus/downloads"),
+        ]
+        
+        files = []
+        extensions = ['*.pptx', '*.ppt', '*.docx', '*.doc', '*.pdf', '*.xlsx', '*.xls', '*.png', '*.jpg', '*.jpeg', '*.csv', '*.txt', '*.html']
+        
+        cutoff_time = time.time() - 300  # Files created in last 5 minutes
+        
+        for output_dir in output_dirs:
+            if os.path.exists(output_dir):
+                for ext in extensions:
+                    for filepath in glob.glob(os.path.join(output_dir, '**', ext), recursive=True):
+                        try:
+                            if os.path.getmtime(filepath) > cutoff_time:
+                                files.append(os.path.basename(filepath))
+                        except:
+                            pass
+        
+        return list(set(files))  # Remove duplicates
+
+    async def execute_task(agent, prompt: str) -> dict:
+        """Execute the full agent task and return rich result with files"""
+        # Send progress update
+        print(json.dumps({"type": "progress", "message": "🚀 Starting task execution..."}), file=sys.stderr)
+        
         await agent.run(prompt)
         
         # Extract final answer
-        final_answer = "✅ Task Completed."
+        final_answer = ""
         
         if agent.memory.messages:
             for msg in reversed(agent.memory.messages):
                 if msg.role == "assistant":
-                    # Check for terminate output
+                    # Check for terminate output - this is the actual result
                     if msg.tool_calls:
                         for tc in msg.tool_calls:
                             if tc.function.name == "terminate":
@@ -164,12 +195,28 @@ try:
                                 except:
                                     pass
                     
-                    # Use message content if available
-                    if msg.content and final_answer == "✅ Task Completed.":
+                    # Use message content as fallback
+                    if not final_answer and msg.content:
                         final_answer = msg.content
                         break
         
-        return final_answer
+        # Find created files
+        files_created = find_output_files()
+        
+        # Build rich response
+        if not final_answer:
+            if files_created:
+                final_answer = f"✅ Task completed! Created {len(files_created)} file(s):\n" + "\n".join(f"📄 {f}" for f in files_created)
+            else:
+                final_answer = "✅ Task completed."
+        elif files_created and "file" not in final_answer.lower():
+            # Append file info if not already mentioned
+            final_answer += f"\n\n📁 Output files: {', '.join(files_created)}"
+        
+        return {
+            "content": final_answer,
+            "files": files_created
+        }
     
     async def main():
         # Suppress stdout during agent creation
@@ -194,7 +241,8 @@ try:
                 sys.stdout = sys.stderr
                 result = await execute_task(agent, prompt)
                 sys.stdout = original_stdout
-                print(f"🤖 Vazal: {result}")
+                # Output as JSON for Node.js to parse
+                print(json.dumps({"type": "result", "content": result["content"], "files": result["files"]}))
                 
         finally:
             sys.stdout = sys.stderr

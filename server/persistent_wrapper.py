@@ -103,50 +103,58 @@ async def generate_plan(prompt: str) -> dict:
     except:
         return {"plan": ["Analyze request", "Execute task", "Return results"], "estimated_time": "30 seconds"}
 
-async def execute_task(prompt: str, request_id: str) -> str:
-    """Execute full agent task with activity streaming"""
+def find_output_files():
+    """Find recently created files in Vazal output directories"""
+    import glob
+    import time
     
-    def send_activity(message: str, step: int = 0, total: int = 0):
-        """Send activity update to UI"""
+    output_dirs = [
+        os.path.expanduser("~/OpenManus/output"),
+        os.path.expanduser("~/OpenManus/workspace"),
+        os.path.expanduser("~/OpenManus/downloads"),
+    ]
+    
+    files = []
+    extensions = ['*.pptx', '*.ppt', '*.docx', '*.doc', '*.pdf', '*.xlsx', '*.xls', '*.png', '*.jpg', '*.jpeg', '*.csv', '*.txt', '*.html']
+    
+    cutoff_time = time.time() - 300  # Files created in last 5 minutes
+    
+    for output_dir in output_dirs:
+        if os.path.exists(output_dir):
+            for ext in extensions:
+                for filepath in glob.glob(os.path.join(output_dir, '**', ext), recursive=True):
+                    try:
+                        if os.path.getmtime(filepath) > cutoff_time:
+                            files.append(os.path.basename(filepath))
+                    except:
+                        pass
+    
+    return list(set(files))  # Remove duplicates
+
+async def execute_task(prompt: str, request_id: str) -> dict:
+    """Execute full agent task with progress updates and file detection"""
+    
+    def send_progress(message: str):
+        """Send progress update to UI"""
         output({
-            "type": "activity",
+            "type": "progress",
             "requestId": request_id,
-            "message": message,
-            "step": step,
-            "total": total
+            "message": message
         })
     
-    # Track tool calls for activity updates
-    original_tool_call = None
-    step_count = 0
+    # Send progress updates during execution
+    send_progress("🔍 Analyzing your request...")
     
-    # Wrap agent to capture tool calls
-    class ActivityTracker:
-        def __init__(self, agent):
-            self.agent = agent
-            self.step = 0
-            
-        async def track_execution(self):
-            # Send initial activity
-            send_activity("Starting task execution...", 0, 5)
-            
-            sys.stdout = sys.stderr
-            await self.agent.run(prompt)
-            sys.stdout = original_stdout
-    
-    tracker = ActivityTracker(agent)
-    
-    # Send activity updates during execution
-    send_activity("Analyzing request...", 1, 5)
-    
+    # Run the agent
     sys.stdout = sys.stderr
+    send_progress("⚙️ Executing task...")
     await agent.run(prompt)
     sys.stdout = original_stdout
     
-    send_activity("Processing complete", 5, 5)
+    send_progress("💾 Finalizing results...")
     
-    # Extract result
-    final = "Task completed."
+    # Extract result from terminate tool or message content
+    final = ""
     if agent.memory.messages:
         for msg in reversed(agent.memory.messages):
             if msg.role == "assistant":
@@ -160,14 +168,30 @@ async def execute_task(prompt: str, request_id: str) -> str:
                                     break
                             except:
                                 pass
-                if msg.content and final == "Task completed.":
+                if not final and msg.content:
                     final = msg.content
                     break
+    
+    # Find created files
+    files_created = find_output_files()
+    
+    # Build rich response
+    if not final:
+        if files_created:
+            final = f"✅ Task completed! Created {len(files_created)} file(s):\n" + "\n".join(f"📄 {f}" for f in files_created)
+        else:
+            final = "✅ Task completed."
+    elif files_created and "file" not in final.lower():
+        # Append file info if not already mentioned
+        final += f"\n\n📁 Output files: {', '.join(files_created)}"
     
     # Reset agent memory for next task
     agent.memory.messages = []
     
-    return final
+    return {
+        "content": final,
+        "files": files_created
+    }
 
 async def handle_request(data: dict):
     """Handle a single request"""
@@ -184,7 +208,7 @@ async def handle_request(data: dict):
             output({"requestId": request_id, "result": result})
         elif mode == "execute":
             result = await execute_task(prompt, request_id)
-            output({"requestId": request_id, "result": result})
+            output({"requestId": request_id, "result": result, "type": "result"})
         else:
             output({"requestId": request_id, "error": f"Unknown mode: {mode}"})
     except Exception as e:

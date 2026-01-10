@@ -230,12 +230,21 @@ class PersistentVazalManager extends EventEmitter {
   }
 
   /**
-   * Execute full task
+   * Execute full task - returns result and files
    */
-  async execute(userId: number, prompt: string): Promise<string> {
+  async execute(userId: number, prompt: string): Promise<{ result: string; files: string[] }> {
     const session = await this.getSession(userId);
     const result = await this.sendRequest(session, prompt, "execute");
-    return typeof result === "string" ? result : result.result || "Task completed.";
+    
+    // Handle different response formats
+    if (typeof result === "string") {
+      return { result, files: [] };
+    }
+    
+    return {
+      result: result.content || result.result || "Task completed.",
+      files: result.files || []
+    };
   }
 
   private sendRequest(session: VazalSession, prompt: string, mode: string): Promise<any> {

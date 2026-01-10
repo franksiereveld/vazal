@@ -175,24 +175,45 @@ export default function Agent() {
         conversationsList.refetch();
       } else {
         if (quickMode) {
-          setProcessingStep("Executing task...");
-          const result = await vazalExecute.mutateAsync({
-            prompt: userMessage,
-            conversationId,
-            files: uploadedFiles.map(f => f.path),
-          });
+          setProcessingStep("🚀 Starting task execution...");
           
-          if (!conversationId && result.conversationId) {
-            setConversationId(result.conversationId);
+          // Show progress updates
+          const progressSteps = [
+            "🔍 Analyzing your request...",
+            "⚙️ Executing task...",
+            "💾 Finalizing results..."
+          ];
+          let stepIndex = 0;
+          const progressInterval = setInterval(() => {
+            if (stepIndex < progressSteps.length) {
+              setProcessingStep(progressSteps[stepIndex]);
+              stepIndex++;
+            }
+          }, 3000);
+          
+          try {
+            const result = await vazalExecute.mutateAsync({
+              prompt: userMessage,
+              conversationId,
+              files: uploadedFiles.map(f => f.path),
+            });
+            clearInterval(progressInterval);
+          
+            if (!conversationId && result.conversationId) {
+              setConversationId(result.conversationId);
+            }
+            
+            setMessages(prev => [...prev, { 
+              role: 'assistant', 
+              content: result.result,
+              files: result.files || [],
+            }]);
+            
+            conversationsList.refetch();
+          } catch (error) {
+            clearInterval(progressInterval);
+            throw error;
           }
-          
-          setMessages(prev => [...prev, { 
-            role: 'assistant', 
-            content: result.result,
-            files: result.files || [],
-          }]);
-          
-          conversationsList.refetch();
         } else {
           setProcessingStep("Creating execution plan...");
           const planResult = await vazalPlan.mutateAsync({ prompt: userMessage });
@@ -222,8 +243,22 @@ export default function Agent() {
     if (!pendingPlan) return;
     
     setIsProcessing(true);
-    setProcessingStep("Executing task...");
+    setProcessingStep("🚀 Starting task execution...");
     setPendingPlan(null);
+    
+    // Show progress updates
+    const progressSteps = [
+      "🔍 Analyzing your request...",
+      "⚙️ Executing task...",
+      "💾 Finalizing results..."
+    ];
+    let stepIndex = 0;
+    const progressInterval = setInterval(() => {
+      if (stepIndex < progressSteps.length) {
+        setProcessingStep(progressSteps[stepIndex]);
+        stepIndex++;
+      }
+    }, 3000);
     
     try {
       const result = await vazalExecute.mutateAsync({
@@ -231,6 +266,7 @@ export default function Agent() {
         conversationId,
         files: uploadedFiles.map(f => f.path),
       });
+      clearInterval(progressInterval);
       
       if (!conversationId && result.conversationId) {
         setConversationId(result.conversationId);
@@ -244,6 +280,7 @@ export default function Agent() {
       
       conversationsList.refetch();
     } catch (error: any) {
+      clearInterval(progressInterval);
       toast.error(error.message || "Failed to execute task");
       setMessages(prev => [...prev, { 
         role: 'assistant', 

@@ -150,31 +150,36 @@ export function ConversationSidebar({
                   )}
                 >
                   <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate pr-6">
+                  <div className="flex-1 min-w-0 pr-8">
+                    {/* Title with text wrapping - show 2 lines */}
+                    <div className="text-sm font-medium line-clamp-2 break-words">
                       {conversation.title || "New Conversation"}
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-muted-foreground mt-1">
                       {formatDate(conversation.updatedAt)}
                     </div>
                   </div>
                 </button>
                 
-                {/* Delete button - appears on hover */}
-                {onDeleteConversation && (hoveredId === conversation.id || confirmDeleteId === conversation.id) && (
+                {/* Delete button - ALWAYS visible on hover with better styling */}
+                {onDeleteConversation && (
                   <button
                     onClick={(e) => handleDeleteClick(e, conversation.id)}
                     disabled={isDeleting}
                     className={cn(
-                      "absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded",
-                      "transition-colors",
+                      "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded",
+                      "transition-all duration-200",
+                      // Show on hover or when confirming
+                      hoveredId === conversation.id || confirmDeleteId === conversation.id
+                        ? "opacity-100 visible"
+                        : "opacity-0 invisible",
                       confirmDeleteId === conversation.id
                         ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        : "hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                        : "bg-muted hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
                     )}
-                    title={confirmDeleteId === conversation.id ? "Click again to confirm" : "Delete conversation"}
+                    title={confirmDeleteId === conversation.id ? "Click again to confirm delete" : "Delete conversation"}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 )}
               </div>

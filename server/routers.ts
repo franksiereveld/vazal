@@ -128,12 +128,14 @@ export const appRouter = router({
           await saveMessage(conversationId, "user", input.prompt);
 
           console.log(`[Vazal] Executing for user ${ctx.user.id}`);
-          const result = await persistentVazalManager.execute(ctx.user.id, fullPrompt);
+          const executeResult = await persistentVazalManager.execute(ctx.user.id, fullPrompt);
 
-          // Extract any output files from the result
-          const outputFiles = extractOutputFiles(result);
+          // Use files from execute result, fallback to extraction
+          const outputFiles = executeResult.files.length > 0 
+            ? executeResult.files 
+            : extractOutputFiles(executeResult.result);
 
-          await saveMessage(conversationId, "assistant", result, outputFiles);
+          await saveMessage(conversationId, "assistant", executeResult.result, outputFiles);
 
           const messages = await getMessagesByConversationId(conversationId);
           if (messages.length <= 2) {
@@ -141,7 +143,7 @@ export const appRouter = router({
             await updateConversationTitle(conversationId, title);
           }
 
-          return { success: true, result, conversationId, files: outputFiles };
+          return { success: true, result: executeResult.result, conversationId, files: outputFiles };
         } catch (error: any) {
           console.error('[Vazal Router] Error:', error);
           throw new Error(error.message || "Failed to execute Vazal command");
