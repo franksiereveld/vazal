@@ -73,3 +73,10 @@
 - [ ] Fix "change phone number" button
 - [ ] Ask for name AFTER signup (not during)
 - [ ] Show user name in header (allow editing)
+
+
+## Performance & UI Improvements (Jan 10, 2026)
+- [ ] Speed up classify/plan responses (persistent Python process)
+- [ ] Fix text box position (move up 1-2cm)
+- [ ] Add file upload button to chat
+- [ ] Add file download for output files (PPTX, DOCX, etc.)

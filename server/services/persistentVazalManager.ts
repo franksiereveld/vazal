@@ -1,5 +1,7 @@
 import { spawn, ChildProcess } from "child_process";
 import { EventEmitter } from "events";
+import path from "path";
+import os from "os";
 
 /**
  * Persistent Vazal Process Manager
@@ -8,13 +10,8 @@ import { EventEmitter } from "events";
  * Communicates with Vazal via stdin/stdout using JSON messages.
  * 
  * Benefits:
- * - First request: ~30s (cold start)
- * - Subsequent requests: ~5s (warm process)
- * 
- * Protocol:
- * - Send: JSON object with { prompt, mode } on stdin
- * - Receive: JSON lines on stdout (streaming events)
- * - Final: JSON object with { done: true, result: "..." }
+ * - First request: ~5-10s (cold start with model loading)
+ * - Subsequent requests: <1s (warm process)
  */
 
 interface VazalSession {
@@ -22,36 +19,45 @@ interface VazalSession {
   userId: number;
   lastActivity: Date;
   isReady: boolean;
+  buffer: string;
   pendingRequests: Map<string, {
-    resolve: (value: string) => void;
+    resolve: (value: any) => void;
     reject: (error: Error) => void;
+    mode: string;
   }>;
+}
+
+function getVazalPath(): string {
+  if (process.env.VAZAL_PATH) return process.env.VAZAL_PATH;
+  return path.join(os.homedir(), "OpenManus");
+}
+
+function getPythonPath(vazalPath: string): string {
+  return path.join(vazalPath, ".venv", "bin", "python3");
 }
 
 class PersistentVazalManager extends EventEmitter {
   private sessions: Map<number, VazalSession> = new Map();
   private readonly vazalPath: string;
+  private readonly pythonPath: string;
   private readonly idleTimeout: number = 10 * 60 * 1000; // 10 minutes
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
     super();
-    this.vazalPath = process.env.VAZAL_PATH || "/Users/I048134/OpenManus";
+    this.vazalPath = getVazalPath();
+    this.pythonPath = getPythonPath(this.vazalPath);
+    console.log(`[PersistentVazal] Initialized with path: ${this.vazalPath}`);
+    console.log(`[PersistentVazal] Using Python: ${this.pythonPath}`);
     this.startCleanupInterval();
   }
 
-  /**
-   * Start periodic cleanup of idle sessions
-   */
   private startCleanupInterval(): void {
     this.cleanupInterval = setInterval(() => {
       this.cleanupIdleSessions();
-    }, 60 * 1000); // Check every minute
+    }, 60 * 1000);
   }
 
-  /**
-   * Clean up sessions that have been idle too long
-   */
   private cleanupIdleSessions(): void {
     const now = new Date();
     this.sessions.forEach((session, userId) => {
@@ -63,30 +69,34 @@ class PersistentVazalManager extends EventEmitter {
     });
   }
 
-  /**
-   * Get or create a warm Vazal session for a user
-   */
   async getSession(userId: number): Promise<VazalSession> {
     let session = this.sessions.get(userId);
     
-    if (session && session.isReady) {
+    if (session && session.isReady && !session.process.killed) {
       session.lastActivity = new Date();
       return session;
     }
 
-    // Create new session
+    // Clean up dead session if exists
+    if (session) {
+      this.sessions.delete(userId);
+    }
+
     return this.createSession(userId);
   }
 
-  /**
-   * Create a new persistent Vazal session
-   */
   private async createSession(userId: number): Promise<VazalSession> {
     console.log(`[PersistentVazal] Creating new session for user ${userId}`);
 
-    const childProcess = spawn("python3", ["main.py", "--persistent"], {
+    const wrapperPath = path.join(process.cwd(), "server", "persistent_wrapper.py");
+    
+    const childProcess = spawn(this.pythonPath, [wrapperPath], {
       cwd: this.vazalPath,
-      env: { ...process.env, VAZAL_PATH: this.vazalPath },
+      env: { 
+        ...process.env, 
+        VAZAL_PATH: this.vazalPath,
+        PYTHONUNBUFFERED: "1",
+      },
       stdio: ["pipe", "pipe", "pipe"],
     });
 
@@ -95,15 +105,17 @@ class PersistentVazalManager extends EventEmitter {
       userId,
       lastActivity: new Date(),
       isReady: false,
+      buffer: "",
       pendingRequests: new Map(),
     };
 
-    // Handle stdout
-    let buffer = "";
+    // Handle stdout - parse JSON responses
     childProcess.stdout?.on("data", (data: Buffer) => {
-      buffer += data.toString();
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+      session.buffer += data.toString();
+      
+      // Process complete JSON lines
+      const lines = session.buffer.split("\n");
+      session.buffer = lines.pop() || "";
 
       for (const line of lines) {
         if (!line.trim()) continue;
@@ -111,34 +123,35 @@ class PersistentVazalManager extends EventEmitter {
           const event = JSON.parse(line);
           this.handleEvent(session, event);
         } catch (e) {
-          // Not JSON, might be a log message
-          console.log(`[PersistentVazal] Log: ${line}`);
+          // Not JSON, log it
+          console.log(`[PersistentVazal] Output: ${line}`);
         }
       }
     });
 
-    // Handle stderr
+    // Handle stderr - just log
     childProcess.stderr?.on("data", (data: Buffer) => {
       const msg = data.toString();
-      // Filter out common warnings
-      if (!msg.includes("tokenizers") && !msg.includes("huggingface")) {
-        console.error(`[PersistentVazal] Error: ${msg}`);
+      // Filter common noise
+      if (!msg.includes("tokenizers") && 
+          !msg.includes("huggingface") &&
+          !msg.includes("TqdmWarning")) {
+        console.error(`[PersistentVazal] stderr: ${msg}`);
       }
     });
 
-    // Handle process exit
     childProcess.on("close", (code: number | null) => {
       console.log(`[PersistentVazal] Session for user ${userId} exited with code ${code}`);
       this.sessions.delete(userId);
       
-      // Reject any pending requests
+      // Reject pending requests
       session.pendingRequests.forEach((request) => {
-        request.reject(new Error("Vazal process terminated unexpectedly"));
+        request.reject(new Error("Vazal process terminated"));
       });
     });
 
     childProcess.on("error", (err: Error) => {
-      console.error(`[PersistentVazal] Process error for user ${userId}:`, err);
+      console.error(`[PersistentVazal] Process error:`, err);
       this.sessions.delete(userId);
     });
 
@@ -150,100 +163,94 @@ class PersistentVazalManager extends EventEmitter {
     return session;
   }
 
-  /**
-   * Wait for the Vazal process to be ready
-   */
   private waitForReady(session: VazalSession): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error("Vazal process failed to start within timeout"));
-      }, 60000); // 60 second timeout for cold start
+      }, 60000);
 
-      const checkReady = () => {
+      const checkReady = setInterval(() => {
         if (session.isReady) {
-          clearTimeout(timeout);
-          resolve();
-        }
-      };
-
-      // Check periodically
-      const interval = setInterval(() => {
-        if (session.isReady) {
-          clearInterval(interval);
+          clearInterval(checkReady);
           clearTimeout(timeout);
           resolve();
         }
       }, 100);
 
-      // Also listen for ready event
       this.once(`ready:${session.userId}`, () => {
-        clearInterval(interval);
+        clearInterval(checkReady);
         clearTimeout(timeout);
         resolve();
       });
-
-      // Mark as ready after a short delay (Vazal doesn't send explicit ready signal)
-      setTimeout(() => {
-        session.isReady = true;
-        this.emit(`ready:${session.userId}`);
-      }, 5000);
     });
   }
 
-  /**
-   * Handle events from Vazal process
-   */
   private handleEvent(session: VazalSession, event: any): void {
     if (event.type === "ready") {
+      console.log(`[PersistentVazal] Session ${session.userId} is ready`);
       session.isReady = true;
       this.emit(`ready:${session.userId}`);
-    } else if (event.done && event.requestId) {
+    } else if (event.requestId) {
       const request = session.pendingRequests.get(event.requestId);
       if (request) {
-        request.resolve(event.result || "");
-        session.pendingRequests.delete(event.requestId);
-      }
-    } else if (event.error && event.requestId) {
-      const request = session.pendingRequests.get(event.requestId);
-      if (request) {
-        request.reject(new Error(event.error));
+        if (event.error) {
+          request.reject(new Error(event.error));
+        } else {
+          request.resolve(event.result || event);
+        }
         session.pendingRequests.delete(event.requestId);
       }
     }
 
-    // Emit for streaming
     this.emit(`event:${session.userId}`, event);
   }
 
   /**
-   * Execute a command on a warm Vazal session
+   * Classify intent - CHAT or TASK
    */
-  async execute(userId: number, prompt: string, mode: "classify" | "plan" | "execute" = "execute"): Promise<string> {
+  async classify(userId: number, prompt: string): Promise<{ type: "CHAT" | "TASK"; response?: string; description?: string }> {
     const session = await this.getSession(userId);
-    session.lastActivity = new Date();
-
-    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    return new Promise((resolve, reject) => {
-      session.pendingRequests.set(requestId, { resolve, reject });
-
-      // Send request to Vazal
-      const request = JSON.stringify({ prompt, mode, requestId }) + "\n";
-      session.process.stdin?.write(request);
-
-      // Timeout after 5 minutes
-      setTimeout(() => {
-        if (session.pendingRequests.has(requestId)) {
-          session.pendingRequests.delete(requestId);
-          reject(new Error("Request timed out"));
-        }
-      }, 300000);
-    });
+    return this.sendRequest(session, prompt, "classify");
   }
 
   /**
-   * Terminate a user's session
+   * Generate execution plan
    */
+  async plan(userId: number, prompt: string): Promise<{ plan: string[]; estimated_time: string }> {
+    const session = await this.getSession(userId);
+    return this.sendRequest(session, prompt, "plan");
+  }
+
+  /**
+   * Execute full task
+   */
+  async execute(userId: number, prompt: string): Promise<string> {
+    const session = await this.getSession(userId);
+    const result = await this.sendRequest(session, prompt, "execute");
+    return typeof result === "string" ? result : result.result || "Task completed.";
+  }
+
+  private sendRequest(session: VazalSession, prompt: string, mode: string): Promise<any> {
+    session.lastActivity = new Date();
+    const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    return new Promise((resolve, reject) => {
+      session.pendingRequests.set(requestId, { resolve, reject, mode });
+
+      const request = JSON.stringify({ prompt, mode, requestId }) + "\n";
+      session.process.stdin?.write(request);
+
+      // Timeout based on mode
+      const timeoutMs = mode === "execute" ? 300000 : 30000; // 5min for execute, 30s for classify/plan
+      setTimeout(() => {
+        if (session.pendingRequests.has(requestId)) {
+          session.pendingRequests.delete(requestId);
+          reject(new Error(`Request timed out (${mode})`));
+        }
+      }, timeoutMs);
+    });
+  }
+
   terminateSession(userId: number): void {
     const session = this.sessions.get(userId);
     if (session) {
@@ -252,12 +259,8 @@ class PersistentVazalManager extends EventEmitter {
     }
   }
 
-  /**
-   * Terminate all sessions
-   */
   terminateAll(): void {
-    const userIds = Array.from(this.sessions.keys());
-    for (const userId of userIds) {
+    for (const userId of this.sessions.keys()) {
       this.terminateSession(userId);
     }
     if (this.cleanupInterval) {
@@ -265,42 +268,18 @@ class PersistentVazalManager extends EventEmitter {
     }
   }
 
-  /**
-   * Get session status for a user
-   */
   getSessionStatus(userId: number): { active: boolean; lastActivity?: Date } {
     const session = this.sessions.get(userId);
-    if (session) {
-      return {
-        active: session.isReady,
-        lastActivity: session.lastActivity,
-      };
-    }
-    return { active: false };
+    return session ? { active: session.isReady, lastActivity: session.lastActivity } : { active: false };
   }
 
-  /**
-   * Get count of active sessions
-   */
   getActiveSessionCount(): number {
     return this.sessions.size;
   }
 }
 
-// Singleton instance
 export const persistentVazalManager = new PersistentVazalManager();
 
-// Cleanup on process exit
-process.on("exit", () => {
-  persistentVazalManager.terminateAll();
-});
-
-process.on("SIGINT", () => {
-  persistentVazalManager.terminateAll();
-  process.exit();
-});
-
-process.on("SIGTERM", () => {
-  persistentVazalManager.terminateAll();
-  process.exit();
-});
+process.on("exit", () => persistentVazalManager.terminateAll());
+process.on("SIGINT", () => { persistentVazalManager.terminateAll(); process.exit(); });
+process.on("SIGTERM", () => { persistentVazalManager.terminateAll(); process.exit(); });

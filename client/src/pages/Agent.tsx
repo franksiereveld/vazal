@@ -2,9 +2,9 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Send, LogOut, Check, X, Loader2, Zap, Trash2 } from "lucide-react";
+import { Send, LogOut, Check, X, Loader2, Zap, Paperclip, Download, FileText } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -17,6 +17,11 @@ interface PendingPlan {
   estimated_time: string;
 }
 
+interface UploadedFile {
+  name: string;
+  path: string;
+}
+
 export default function Agent() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -27,8 +32,11 @@ export default function Agent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<PendingPlan | null>(null);
   const [processingStep, setProcessingStep] = useState<string>("");
-  const [quickMode, setQuickMode] = useState(false); // Skip planning for faster execution
+  const [quickMode, setQuickMode] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // MUST be before any conditional returns (React hooks rule)
   const vazalClassify = trpc.vazal.classify.useMutation();
@@ -49,7 +57,7 @@ export default function Agent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, pendingPlan]);
 
-  // Redirect to home if not authenticated (but wait for loading to complete)
+  // Redirect to home if not authenticated
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       setLocation("/");
@@ -67,7 +75,7 @@ export default function Agent() {
     }
   }, [getMessages.data, conversationId]);
 
-  // Show loading state while checking authentication
+  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -79,17 +87,72 @@ export default function Agent() {
     );
   }
 
-  // If not authenticated after loading, the useEffect will redirect
   if (!isAuthenticated) {
     return null;
   }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+
+      const response = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const result = await response.json();
+      setUploadedFiles(prev => [...prev, ...result.files]);
+      toast.success(`Uploaded ${files.length} file(s)`);
+    } catch (error) {
+      toast.error('Failed to upload files');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDownloadFile = async (filename: string) => {
+    try {
+      const link = document.createElement('a');
+      link.href = `/api/files/download/${encodeURIComponent(filename)}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast.error('Failed to download file');
+    }
+  };
 
   const handleSend = async () => {
     if (!input.trim() || isProcessing) return;
 
     const userMessage = input.trim();
     setInput("");
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    
+    // Include uploaded files in message display
+    const filesInfo = uploadedFiles.length > 0 
+      ? `\n\n📎 Attached: ${uploadedFiles.map(f => f.name).join(', ')}`
+      : '';
+    
+    setMessages(prev => [...prev, { role: 'user', content: userMessage + filesInfo }]);
     setIsProcessing(true);
     setProcessingStep("Analyzing your request...");
 
@@ -98,12 +161,10 @@ export default function Agent() {
       const classification = await vazalClassify.mutateAsync({ prompt: userMessage });
       
       if (classification.type === "CHAT") {
-        // Direct chat response - no planning needed
         setProcessingStep("");
         const response = classification.response || "Hello! How can I help you?";
         setMessages(prev => [...prev, { role: 'assistant', content: response }]);
         
-        // Save to database
         await vazalChat.mutateAsync({
           prompt: userMessage,
           response: response,
@@ -112,13 +173,12 @@ export default function Agent() {
         
         conversationsList.refetch();
       } else {
-        // It's a TASK
         if (quickMode) {
-          // Quick Mode: Skip planning, execute directly
           setProcessingStep("Executing task...");
           const result = await vazalExecute.mutateAsync({
             prompt: userMessage,
             conversationId,
+            files: uploadedFiles.map(f => f.path),
           });
           
           if (!conversationId && result.conversationId) {
@@ -128,11 +188,11 @@ export default function Agent() {
           setMessages(prev => [...prev, { 
             role: 'assistant', 
             content: result.result,
+            files: result.files || [],
           }]);
           
           conversationsList.refetch();
         } else {
-          // Normal Mode: Generate plan for user confirmation
           setProcessingStep("Creating execution plan...");
           const planResult = await vazalPlan.mutateAsync({ prompt: userMessage });
           
@@ -153,6 +213,7 @@ export default function Agent() {
     } finally {
       setIsProcessing(false);
       setProcessingStep("");
+      setUploadedFiles([]); // Clear uploaded files after sending
     }
   };
 
@@ -167,6 +228,7 @@ export default function Agent() {
       const result = await vazalExecute.mutateAsync({
         prompt: pendingPlan.prompt,
         conversationId,
+        files: uploadedFiles.map(f => f.path),
       });
       
       if (!conversationId && result.conversationId) {
@@ -176,6 +238,7 @@ export default function Agent() {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: result.result,
+        files: result.files || [],
       }]);
       
       conversationsList.refetch();
@@ -188,6 +251,7 @@ export default function Agent() {
     } finally {
       setIsProcessing(false);
       setProcessingStep("");
+      setUploadedFiles([]);
     }
   };
 
@@ -210,6 +274,7 @@ export default function Agent() {
     setConversationId(undefined);
     setMessages([]);
     setPendingPlan(null);
+    setUploadedFiles([]);
   };
 
   const handleSelectConversation = (id: number) => {
@@ -217,6 +282,7 @@ export default function Agent() {
       setConversationId(id);
       setMessages([]);
       setPendingPlan(null);
+      setUploadedFiles([]);
     }
   };
 
@@ -225,13 +291,11 @@ export default function Agent() {
       await deleteConversation.mutateAsync({ conversationId: id });
       toast.success("Conversation deleted");
       
-      // If we deleted the active conversation, clear it
       if (id === conversationId) {
         setConversationId(undefined);
         setMessages([]);
       }
       
-      // Refresh the list
       conversationsList.refetch();
     } catch (error: any) {
       toast.error(error.message || "Failed to delete conversation");
@@ -264,7 +328,6 @@ export default function Agent() {
             </div>
             
             <div className="flex items-center gap-4">
-              {/* Quick Mode Toggle */}
               <div className="flex items-center gap-2">
                 <Zap className={`w-4 h-4 ${quickMode ? 'text-yellow-500' : 'text-muted-foreground'}`} />
                 <span className="text-sm text-muted-foreground">Quick</span>
@@ -290,11 +353,11 @@ export default function Agent() {
           </div>
         </header>
 
-        {/* Chat Area */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Chat Area - with padding bottom for input */}
+        <main className="flex-1 overflow-y-auto pb-32">
           <div className="max-w-4xl mx-auto px-6 py-8">
             {messages.length === 0 && !pendingPlan ? (
-              <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+              <div className="flex flex-col items-center justify-center h-[50vh] text-center">
                 <h2 className="text-3xl font-bold mb-4">Welcome to Vazal AI</h2>
                 <p className="text-muted-foreground mb-8 max-w-md">
                   Your personal AI agent is ready. Ask me anything, and I'll show you a plan before executing.
@@ -334,6 +397,27 @@ export default function Agent() {
                       }`}
                     >
                       <LatexRenderer content={message.content} />
+                      
+                      {/* Show downloadable files */}
+                      {message.files && message.files.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-border/50">
+                          <p className="text-xs text-muted-foreground mb-2">📁 Output Files:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {message.files.map((file, fileIdx) => (
+                              <Button
+                                key={fileIdx}
+                                variant="outline"
+                                size="sm"
+                                className="gap-1 h-7 text-xs"
+                                onClick={() => handleDownloadFile(file)}
+                              >
+                                <Download className="w-3 h-3" />
+                                {file}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -395,10 +479,51 @@ export default function Agent() {
           </div>
         </main>
 
-        {/* Input Area */}
-        <footer className="border-t border-border bg-background/80 backdrop-blur-md p-4">
+        {/* Input Area - Fixed at bottom with more space */}
+        <footer className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md p-4 ml-[var(--sidebar-width,0px)]" style={{ marginLeft: sidebarCollapsed ? '64px' : '280px' }}>
           <div className="max-w-4xl mx-auto">
-            <div className="flex gap-3">
+            {/* Uploaded files preview */}
+            {uploadedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {uploadedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center gap-1 bg-muted rounded-lg px-2 py-1 text-sm">
+                    <FileText className="w-3 h-3" />
+                    <span className="max-w-[150px] truncate">{file.name}</span>
+                    <button
+                      onClick={() => handleRemoveFile(index)}
+                      className="ml-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div className="flex gap-3 items-end">
+              {/* File upload button */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.md,.png,.jpg,.jpeg"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-[50px] w-[50px] shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessing || isUploading}
+              >
+                {isUploading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Paperclip className="w-5 h-5" />
+                )}
+              </Button>
+              
               <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -411,7 +536,7 @@ export default function Agent() {
                 onClick={handleSend} 
                 disabled={!input.trim() || isProcessing || !!pendingPlan}
                 size="icon"
-                className="h-[50px] w-[50px]"
+                className="h-[50px] w-[50px] shrink-0"
               >
                 {isProcessing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
