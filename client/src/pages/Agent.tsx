@@ -2,11 +2,20 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Send, Download, FileText, LogOut } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { Send, LogOut, Check, X, Loader2, Zap, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { LatexRenderer } from "@/components/LatexRenderer";
+import { ConversationSidebar } from "@/components/ConversationSidebar";
+
+interface PendingPlan {
+  prompt: string;
+  plan: string[];
+  estimated_time: string;
+}
 
 export default function Agent() {
   const { user, loading, isAuthenticated, logout } = useAuth();
@@ -14,15 +23,31 @@ export default function Agent() {
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string, files?: string[] }>>([]);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [conversationId, setConversationId] = useState<number | undefined>(undefined);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<PendingPlan | null>(null);
+  const [processingStep, setProcessingStep] = useState<string>("");
+  const [quickMode, setQuickMode] = useState(false); // Skip planning for faster execution
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  
+  // MUST be before any conditional returns (React hooks rule)
+  const vazalClassify = trpc.vazal.classify.useMutation();
+  const vazalPlan = trpc.vazal.plan.useMutation();
   const vazalExecute = trpc.vazal.execute.useMutation();
+  const vazalChat = trpc.vazal.chat.useMutation();
+  const conversationsList = trpc.conversations.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+  const getMessages = trpc.conversations.getMessages.useQuery(
+    { conversationId: conversationId! },
+    { enabled: !!conversationId }
+  );
+  const deleteConversation = trpc.conversations.delete.useMutation();
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, pendingPlan]);
 
   // Redirect to home if not authenticated (but wait for loading to complete)
   useEffect(() => {
@@ -31,41 +56,16 @@ export default function Agent() {
     }
   }, [loading, isAuthenticated, setLocation]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isProcessing) return;
-
-    const userMessage = input.trim();
-    setInput("");
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setIsProcessing(true);
-
-    try {
-      // Vazal handles chat vs task detection internally
-      const response = await vazalExecute.mutateAsync({ prompt: userMessage });
-      
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: response.result,
-        files: [] // TODO: Extract file paths from Vazal output
-      }]);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to process request");
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: "Sorry, I encountered an error processing your request. Please try again.",
-        files: []
-      }]);
-    } finally {
-      setIsProcessing(false);
+  // Load messages when conversation changes
+  useEffect(() => {
+    if (getMessages.data && conversationId) {
+      setMessages(getMessages.data.map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        files: msg.files || [],
+      })));
     }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+  }, [getMessages.data, conversationId]);
 
   // Show loading state while checking authentication
   if (loading) {
@@ -84,134 +84,345 @@ export default function Agent() {
     return null;
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="container flex items-center justify-between h-16">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold">vazal.ai</h1>
-            <span className="text-sm text-muted-foreground">Your Personal AI Agent</span>
-          </div>
+  const handleSend = async () => {
+    if (!input.trim() || isProcessing) return;
+
+    const userMessage = input.trim();
+    setInput("");
+    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsProcessing(true);
+    setProcessingStep("Analyzing your request...");
+
+    try {
+      // Step 1: Classify intent
+      const classification = await vazalClassify.mutateAsync({ prompt: userMessage });
+      
+      if (classification.type === "CHAT") {
+        // Direct chat response - no planning needed
+        setProcessingStep("");
+        const response = classification.response || "Hello! How can I help you?";
+        setMessages(prev => [...prev, { role: 'assistant', content: response }]);
+        
+        // Save to database
+        await vazalChat.mutateAsync({
+          prompt: userMessage,
+          response: response,
+          conversationId,
+        });
+        
+        conversationsList.refetch();
+      } else {
+        // It's a TASK
+        if (quickMode) {
+          // Quick Mode: Skip planning, execute directly
+          setProcessingStep("Executing task...");
+          const result = await vazalExecute.mutateAsync({
+            prompt: userMessage,
+            conversationId,
+          });
           
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              {user?.phone || user?.name || 'User'}
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => logout()}
-              className="gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </header>
+          if (!conversationId && result.conversationId) {
+            setConversationId(result.conversationId);
+          }
+          
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: result.result,
+          }]);
+          
+          conversationsList.refetch();
+        } else {
+          // Normal Mode: Generate plan for user confirmation
+          setProcessingStep("Creating execution plan...");
+          const planResult = await vazalPlan.mutateAsync({ prompt: userMessage });
+          
+          setPendingPlan({
+            prompt: userMessage,
+            plan: planResult.plan,
+            estimated_time: planResult.estimated_time,
+          });
+          setProcessingStep("");
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to process request");
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "Sorry, I encountered an error. Please try again.",
+      }]);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStep("");
+    }
+  };
 
-      {/* Chat Area */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="container max-w-4xl py-8">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-              <h2 className="text-3xl font-bold mb-4">Welcome to Vazal AI</h2>
-              <p className="text-muted-foreground mb-8 max-w-md">
-                Your personal AI agent is ready. Ask me anything, and I'll help you with tasks, analysis, and more.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
-                <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Help me analyze data")}>
-                  <p className="font-medium mb-2">📊 Data Analysis</p>
-                  <p className="text-sm text-muted-foreground">Analyze datasets and generate insights</p>
-                </Card>
-                <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Write code for me")}>
-                  <p className="font-medium mb-2">💻 Code Generation</p>
-                  <p className="text-sm text-muted-foreground">Generate and debug code in any language</p>
-                </Card>
-                <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Research a topic")}>
-                  <p className="font-medium mb-2">🔍 Research</p>
-                  <p className="text-sm text-muted-foreground">Deep dive into any topic with sources</p>
-                </Card>
-                <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Create a presentation")}>
-                  <p className="font-medium mb-2">📑 Content Creation</p>
-                  <p className="text-sm text-muted-foreground">Generate documents, slides, and reports</p>
-                </Card>
+  const handleConfirmPlan = async () => {
+    if (!pendingPlan) return;
+    
+    setIsProcessing(true);
+    setProcessingStep("Executing task...");
+    setPendingPlan(null);
+    
+    try {
+      const result = await vazalExecute.mutateAsync({
+        prompt: pendingPlan.prompt,
+        conversationId,
+      });
+      
+      if (!conversationId && result.conversationId) {
+        setConversationId(result.conversationId);
+      }
+      
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: result.result,
+      }]);
+      
+      conversationsList.refetch();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to execute task");
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: "Sorry, I encountered an error executing the task. Please try again.",
+      }]);
+    } finally {
+      setIsProcessing(false);
+      setProcessingStep("");
+    }
+  };
+
+  const handleRejectPlan = () => {
+    setPendingPlan(null);
+    setMessages(prev => [...prev, { 
+      role: 'assistant', 
+      content: "No problem! Feel free to rephrase your request or ask something else.",
+    }]);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const handleNewChat = () => {
+    setConversationId(undefined);
+    setMessages([]);
+    setPendingPlan(null);
+  };
+
+  const handleSelectConversation = (id: number) => {
+    if (id !== conversationId) {
+      setConversationId(id);
+      setMessages([]);
+      setPendingPlan(null);
+    }
+  };
+
+  const handleDeleteConversation = async (id: number) => {
+    try {
+      await deleteConversation.mutateAsync({ conversationId: id });
+      toast.success("Conversation deleted");
+      
+      // If we deleted the active conversation, clear it
+      if (id === conversationId) {
+        setConversationId(undefined);
+        setMessages([]);
+      }
+      
+      // Refresh the list
+      conversationsList.refetch();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete conversation");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex bg-background">
+      {/* Sidebar */}
+      <ConversationSidebar
+        conversations={conversationsList.data || []}
+        activeConversationId={conversationId}
+        onSelectConversation={handleSelectConversation}
+        onNewChat={handleNewChat}
+        onDeleteConversation={handleDeleteConversation}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isLoading={conversationsList.isLoading}
+        isDeleting={deleteConversation.isPending}
+      />
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="border-b border-border bg-background/80 backdrop-blur-md sticky top-0 z-50">
+          <div className="px-6 flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold">vazal.ai</h1>
+              <span className="text-sm text-muted-foreground">Your Personal AI Agent</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+              {/* Quick Mode Toggle */}
+              <div className="flex items-center gap-2">
+                <Zap className={`w-4 h-4 ${quickMode ? 'text-yellow-500' : 'text-muted-foreground'}`} />
+                <span className="text-sm text-muted-foreground">Quick</span>
+                <Switch
+                  checked={quickMode}
+                  onCheckedChange={setQuickMode}
+                  aria-label="Toggle quick mode"
+                />
               </div>
+              <span className="text-sm text-muted-foreground">
+                {user?.phone || user?.name || 'User'}
+              </span>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => logout()}
+                className="gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {messages.map((message, index) => (
-                <div key={index} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <Card className={`max-w-[80%] p-4 ${message.role === 'user' ? 'bg-accent text-accent-foreground' : 'bg-card text-card-foreground'}`}>
-                    <div className="whitespace-pre-wrap">{message.content}</div>
-                    {message.files && message.files.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <FileText className="w-4 h-4" />
-                          <span className="text-sm font-medium">Output Files</span>
-                        </div>
-                        <div className="space-y-2">
-                          {message.files.map((file, fileIndex) => (
-                            <Button 
-                              key={fileIndex} 
-                              variant="outline" 
-                              size="sm" 
-                              className="w-full justify-start gap-2"
-                            >
-                              <Download className="w-4 h-4" />
-                              {file}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                </div>
-              ))}
-              {isProcessing && (
-                <div className="flex justify-start">
-                  <Card className="max-w-[80%] p-4 bg-card">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-2 h-2 bg-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-2 h-2 bg-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </Card>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Input Area */}
-      <footer className="border-t border-border bg-background/80 backdrop-blur-md sticky bottom-0">
-        <div className="container max-w-4xl py-4">
-          <div className="flex gap-2">
-            <Textarea
-              value={input}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInput(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder="Ask Vazal anything... (Press Enter to send, Shift+Enter for new line)"
-              className="min-h-[60px] max-h-[200px] resize-none"
-              disabled={isProcessing}
-            />
-            <Button 
-              onClick={handleSend} 
-              disabled={!input.trim() || isProcessing}
-              size="lg"
-              className="px-6"
-            >
-              <Send className="w-5 h-5" />
-            </Button>
           </div>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Vazal AI can make mistakes. Verify important information.
-          </p>
-        </div>
-      </footer>
+        </header>
+
+        {/* Chat Area */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-6 py-8">
+            {messages.length === 0 && !pendingPlan ? (
+              <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+                <h2 className="text-3xl font-bold mb-4">Welcome to Vazal AI</h2>
+                <p className="text-muted-foreground mb-8 max-w-md">
+                  Your personal AI agent is ready. Ask me anything, and I'll show you a plan before executing.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                  <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Help me analyze data")}>
+                    <p className="font-medium mb-2">📊 Data Analysis</p>
+                    <p className="text-sm text-muted-foreground">Analyze datasets and generate insights</p>
+                  </Card>
+                  <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Write code for me")}>
+                    <p className="font-medium mb-2">💻 Code Generation</p>
+                    <p className="text-sm text-muted-foreground">Generate and debug code in any language</p>
+                  </Card>
+                  <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Research a topic")}>
+                    <p className="font-medium mb-2">🔍 Research</p>
+                    <p className="text-sm text-muted-foreground">Deep dive into any topic with sources</p>
+                  </Card>
+                  <Card className="p-4 hover:border-foreground transition-colors cursor-pointer" onClick={() => setInput("Create a presentation")}>
+                    <p className="font-medium mb-2">📑 Content Creation</p>
+                    <p className="text-sm text-muted-foreground">Generate documents, slides, and reports</p>
+                  </Card>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Messages */}
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <LatexRenderer content={message.content} />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Pending Plan Card */}
+                {pendingPlan && (
+                  <div className="flex justify-start">
+                    <Card className="max-w-[80%] p-4 border-2 border-primary/50">
+                      <h3 className="font-semibold mb-3 flex items-center gap-2">
+                        📋 Execution Plan
+                        <span className="text-xs text-muted-foreground font-normal">
+                          (Est. {pendingPlan.estimated_time})
+                        </span>
+                      </h3>
+                      <ol className="list-decimal list-inside space-y-2 mb-4">
+                        {pendingPlan.plan.map((step, idx) => (
+                          <li key={idx} className="text-sm">{step}</li>
+                        ))}
+                      </ol>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={handleConfirmPlan} 
+                          size="sm"
+                          className="gap-1"
+                        >
+                          <Check className="w-4 h-4" />
+                          Execute
+                        </Button>
+                        <Button 
+                          onClick={handleRejectPlan} 
+                          variant="outline" 
+                          size="sm"
+                          className="gap-1"
+                        >
+                          <X className="w-4 h-4" />
+                          Cancel
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-3">
+                        💡 Tip: You can refine your request if the plan doesn't look right.
+                      </p>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Processing indicator */}
+                {isProcessing && processingStep && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-2xl px-4 py-3 flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">{processingStep}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Input Area */}
+        <footer className="border-t border-border bg-background/80 backdrop-blur-md p-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-3">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Ask Vazal anything... (Press Enter to send, Shift+Enter for new line)"
+                className="min-h-[50px] max-h-[200px] resize-none"
+                disabled={isProcessing || !!pendingPlan}
+              />
+              <Button 
+                onClick={handleSend} 
+                disabled={!input.trim() || isProcessing || !!pendingPlan}
+                size="icon"
+                className="h-[50px] w-[50px]"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Send className="w-5 h-5" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

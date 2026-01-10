@@ -45,3 +45,31 @@
 - [x] Use Vazal's built-in LLM-based chat vs task detection (removed duplicate logic)
 - [ ] Implement persistent Vazal process manager (keep Python warm)
 - [ ] Pre-warm browser and database tools on startup
+
+
+## Conversation Management (Jan 10, 2026)
+- [ ] Fix conversation sidebar display
+- [ ] Implement chat history persistence to database
+- [ ] Add delete conversation functionality
+- [ ] Show conversation list with titles/timestamps
+
+## File Upload/Download
+- [ ] Add file upload button to chat input
+- [ ] Create file upload API endpoint
+- [ ] Store uploaded files (local or S3)
+- [ ] Pass uploaded file paths to Vazal
+- [ ] Extract output file paths from Vazal response
+- [ ] Add download buttons for output files (PPTX, DOCX, etc.)
+- [ ] Serve files via download endpoint
+
+## Learning System
+- [ ] User-specific memories (preferences, context, history)
+- [ ] Generic lessons (patterns learned across all users)
+- [ ] Integrate with Vazal's memory system
+- [ ] Store learnings in database
+- [ ] Allow users to view/manage their memories
+
+## Login Flow Improvements
+- [ ] Fix "change phone number" button
+- [ ] Ask for name AFTER signup (not during)
+- [ ] Show user name in header (allow editing)

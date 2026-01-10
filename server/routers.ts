@@ -1,13 +1,13 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import { generateSMSCode, sendSMSCode } from "./_core/sms";
 import { createSMSVerification, verifySMSCode, findOrCreateUserByPhone } from "./smsAuth";
-import { getUserByOpenId } from "./db";
+import { getUserByOpenId, createConversation, getConversationsByUserId, getMessagesByConversationId, saveMessage, updateConversationTitle, deleteConversation } from "./db";
 import { sdk } from "./_core/sdk";
-import { executeVazalCommand } from "./vazalService";
+import { executeVazalCommand, classifyIntent, generatePlan } from "./vazalService";
 
 export const appRouter = router({
     // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -83,17 +83,114 @@ export const appRouter = router({
   }),
 
   vazal: router({
-    // Vazal handles chat vs task detection internally
-    execute: publicProcedure
+    // Step 1: Classify intent (CHAT vs TASK)
+    classify: protectedProcedure
       .input(z.object({ prompt: z.string().min(1) }))
       .mutation(async ({ input }) => {
+        const result = await classifyIntent(input.prompt);
+        return result;
+      }),
+
+    // Step 2: Generate plan for TASK
+    plan: protectedProcedure
+      .input(z.object({ prompt: z.string().min(1) }))
+      .mutation(async ({ input }) => {
+        const result = await generatePlan(input.prompt);
+        return result;
+      }),
+
+    // Step 3: Execute task (after plan confirmation)
+    execute: protectedProcedure
+      .input(z.object({ 
+        prompt: z.string().min(1),
+        conversationId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
         try {
-          const result = await executeVazalCommand(input.prompt);
-          return { success: true, result };
+          // Create conversation if not provided
+          let conversationId = input.conversationId;
+          if (!conversationId) {
+            conversationId = await createConversation(ctx.user.id);
+          }
+
+          // Save user message
+          await saveMessage(conversationId, "user", input.prompt);
+
+          // Execute Vazal
+          const result = await executeVazalCommand(input.prompt, ctx.user.id);
+
+          // Save assistant response
+          await saveMessage(conversationId, "assistant", result);
+
+          // Update conversation title if it's the first message
+          const messages = await getMessagesByConversationId(conversationId);
+          if (messages.length <= 2) {
+            const title = input.prompt.slice(0, 50) + (input.prompt.length > 50 ? "..." : "");
+            await updateConversationTitle(conversationId, title);
+          }
+
+          return { success: true, result, conversationId };
         } catch (error: any) {
           console.error('[Vazal Router] Error:', error);
           throw new Error(error.message || "Failed to execute Vazal command");
         }
+      }),
+
+    // Quick chat response (for CHAT type, no execution needed)
+    chat: protectedProcedure
+      .input(z.object({ 
+        prompt: z.string().min(1),
+        response: z.string().min(1),
+        conversationId: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Create conversation if not provided
+        let conversationId = input.conversationId;
+        if (!conversationId) {
+          conversationId = await createConversation(ctx.user.id);
+        }
+
+        // Save both messages
+        await saveMessage(conversationId, "user", input.prompt);
+        await saveMessage(conversationId, "assistant", input.response);
+
+        // Update title
+        const title = input.prompt.slice(0, 50) + (input.prompt.length > 50 ? "..." : "");
+        await updateConversationTitle(conversationId, title);
+
+        return { success: true, conversationId };
+      }),
+  }),
+
+  conversations: router({
+    list: protectedProcedure
+      .query(async ({ ctx }) => {
+        return getConversationsByUserId(ctx.user.id);
+      }),
+
+    getMessages: protectedProcedure
+      .input(z.object({ conversationId: z.number() }))
+      .query(async ({ input }) => {
+        const messages = await getMessagesByConversationId(input.conversationId);
+        // Parse files JSON
+        return messages.map(msg => ({
+          ...msg,
+          files: msg.files ? JSON.parse(msg.files) : [],
+        }));
+      }),
+
+    create: protectedProcedure
+      .input(z.object({ title: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const id = await createConversation(ctx.user.id, input.title);
+        return { id };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ conversationId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        await deleteConversation(input.conversationId, ctx.user.id);
+        return { success: true };
       }),
   }),
 });

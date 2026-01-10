@@ -7,6 +7,9 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+import { executeVazalStreaming } from "../services/vazalStreamingService";
+import { createConversation, saveMessage } from "../db";
+import { sdk } from "./sdk";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -35,6 +38,46 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+
+  // SSE endpoint for streaming Vazal responses
+  app.post("/api/vazal/stream", async (req, res) => {
+    try {
+      // Authenticate using SDK
+      const user = await sdk.authenticateRequest(req);
+      if (!user) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      const { prompt, conversationId: inputConversationId } = req.body;
+      if (!prompt) {
+        res.status(400).json({ error: "Prompt is required" });
+        return;
+      }
+
+      // Create conversation if not provided
+      let conversationId = inputConversationId;
+      if (!conversationId) {
+        conversationId = await createConversation(user.id, prompt.substring(0, 50));
+      }
+
+      // Save user message
+      await saveMessage(conversationId, "user", prompt);
+
+      // Execute with streaming
+      const result = await executeVazalStreaming(user.id, prompt, res);
+
+      // Save assistant response (after streaming completes)
+      if (result) {
+        await saveMessage(conversationId, "assistant", result);
+      }
+    } catch (error: any) {
+      console.error("[Vazal Stream Error]", error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message || "Internal server error" });
+      }
+    }
+  });
   // tRPC API
   app.use(
     "/api/trpc",

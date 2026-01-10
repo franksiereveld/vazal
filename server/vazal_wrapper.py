@@ -2,6 +2,7 @@
 """
 Wrapper script to run Vazal AI in an isolated environment.
 This prevents event loop conflicts when called from Node.js.
+Includes chat vs task classification for proper handling of simple messages.
 """
 import sys
 import os
@@ -19,7 +20,7 @@ if len(sys.argv) < 2:
 prompt = sys.argv[1]
 
 # Change to Vazal directory
-vazal_path = os.environ.get('VAZAL_PATH', '/Users/I048134/OpenManus')
+vazal_path = os.environ.get('VAZAL_PATH', os.path.expanduser('~/OpenManus'))
 os.chdir(vazal_path)
 
 # Import Vazal after changing directory
@@ -27,19 +28,43 @@ sys.path.insert(0, vazal_path)
 
 try:
     from app.agent.vazal import Vazal
-    from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
     from app.schema import Message
+    
+    async def classify_intent(agent, prompt: str) -> str:
+        """
+        Classify if the prompt is a simple CHAT or a TASK requiring agent action.
+        """
+        classifier_prompt = (
+            f"Analyze this user prompt:\n"
+            f"User Prompt: '{prompt}'\n\n"
+            "Is this a simple CHAT greeting/question (e.g. 'hi', 'hello', 'how are you', 'what is 2+2') "
+            "OR a TASK requiring action (e.g. 'find X', 'create a presentation', 'research Y')?\n\n"
+            "CHAT examples: greetings, simple math, definitions, casual questions\n"
+            "TASK examples: research, create files, browse web, complex analysis\n\n"
+            "Output format:\n"
+            "TYPE: [CHAT or TASK]\n"
+            "RESPONSE: [If CHAT, write a friendly response here. If TASK, write 'Executing task...']"
+        )
+        return await agent.llm.ask([Message.user_message(classifier_prompt)], stream=False)
     
     async def run_vazal():
         """Run Vazal with the given prompt"""
         # Create agent instance
-        agent = Vazal(
-            system_prompt=SYSTEM_PROMPT,
-            next_step_prompt=NEXT_STEP_PROMPT,
-        )
+        agent = Vazal()
         
         try:
-            # Run the agent
+            # Classify intent first
+            classification = await classify_intent(agent, prompt)
+            print(f"[Classification] {classification}", file=sys.stderr)
+            
+            if "TYPE: CHAT" in classification:
+                # Extract the chat response
+                parts = classification.split("RESPONSE:")
+                response = parts[1].strip() if len(parts) > 1 else "Hello! How can I help you today?"
+                print(f"🤖 Vazal: {response}")
+                return
+            
+            # It's a TASK - run the full agent
             await agent.run(prompt)
             
             # Extract final answer

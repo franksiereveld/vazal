@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, conversations, messages, InsertConversation, InsertMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -90,4 +90,81 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Conversation history queries
+export async function createConversation(userId: number, title?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(conversations).values({
+    userId,
+    title: title || "New Conversation",
+  });
+
+  return result[0].insertId;
+}
+
+export async function getConversationsByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(conversations)
+    .where(eq(conversations.userId, userId))
+    .orderBy(desc(conversations.updatedAt));
+}
+
+export async function getMessagesByConversationId(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db.select().from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(messages.createdAt);
+}
+
+export async function saveMessage(conversationId: number, role: "user" | "assistant", content: string, files?: string[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.insert(messages).values({
+    conversationId,
+    role,
+    content,
+    files: files ? JSON.stringify(files) : null,
+  });
+
+  // Update conversation's updatedAt
+  await db.update(conversations)
+    .set({ updatedAt: new Date() })
+    .where(eq(conversations.id, conversationId));
+}
+
+
+export async function updateConversationTitle(conversationId: number, title: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(conversations)
+    .set({ title, updatedAt: new Date() })
+    .where(eq(conversations.id, conversationId));
+}
+
+
+export async function deleteConversation(conversationId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // First verify the conversation belongs to the user
+  const conversation = await db.select().from(conversations)
+    .where(eq(conversations.id, conversationId))
+    .limit(1);
+
+  if (conversation.length === 0 || conversation[0].userId !== userId) {
+    throw new Error("Conversation not found or access denied");
+  }
+
+  // Delete messages first (foreign key constraint)
+  await db.delete(messages).where(eq(messages.conversationId, conversationId));
+  
+  // Then delete the conversation
+  await db.delete(conversations).where(eq(conversations.id, conversationId));
+}
