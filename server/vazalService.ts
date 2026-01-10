@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
+import os from "os";
 
 // ES module equivalent of __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -19,6 +20,36 @@ export interface VazalResponse {
 }
 
 /**
+ * Get the Vazal installation path based on environment or OS
+ */
+function getVazalPath(): string {
+  // Check environment variable first
+  if (process.env.VAZAL_PATH) {
+    return process.env.VAZAL_PATH;
+  }
+  
+  // Auto-detect based on OS
+  const homeDir = os.homedir();
+  const platform = os.platform();
+  
+  if (platform === "darwin") {
+    // macOS - check common locations
+    return path.join(homeDir, "OpenManus");
+  } else {
+    // Linux/Ubuntu
+    return path.join(homeDir, "OpenManus");
+  }
+}
+
+/**
+ * Get the Python executable path (use venv if available)
+ */
+function getPythonPath(vazalPath: string): string {
+  const venvPython = path.join(vazalPath, ".venv", "bin", "python3");
+  return venvPython;
+}
+
+/**
  * Execute Vazal AI agent with a user prompt
  * Returns a stream of responses as the agent thinks and acts
  */
@@ -26,15 +57,16 @@ export async function* executeVazal(
   prompt: string,
   onProgress?: (message: string) => void
 ): AsyncGenerator<VazalResponse> {
-  // Path to Vazal AI installation (adjust based on deployment)
-  // Default to ~/OpenManus on Mac, or use VAZAL_PATH env variable
-  const vazalPath = process.env.VAZAL_PATH || "/Users/I048134/OpenManus";
+  const vazalPath = getVazalPath();
+  const pythonPath = getPythonPath(vazalPath);
   
   // Use wrapper script to isolate Python event loop
   const wrapperPath = path.join(__dirname, "vazal_wrapper.py");
   console.log('[Vazal] Using wrapper at:', wrapperPath);
+  console.log('[Vazal] Using Python at:', pythonPath);
+  console.log('[Vazal] Vazal path:', vazalPath);
   
-  const pythonProcess = spawn("python3", [wrapperPath, prompt], {
+  const pythonProcess = spawn(pythonPath, [wrapperPath, prompt], {
     env: {
       ...process.env,
       VAZAL_PATH: vazalPath,
@@ -134,7 +166,7 @@ export async function* executeVazal(
  * Check if Vazal AI is installed and configured
  */
 export async function checkVazalInstallation(): Promise<boolean> {
-  const vazalPath = process.env.VAZAL_PATH || "/Users/I048134/OpenManus";
+  const vazalPath = getVazalPath();
   
   try {
     const fs = await import("fs/promises");
