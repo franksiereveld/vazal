@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { LatexRenderer } from "@/components/LatexRenderer";
 import { ConversationSidebar } from "@/components/ConversationSidebar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PendingPlan {
   prompt: string;
@@ -328,15 +329,24 @@ export default function Agent() {
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Zap className={`w-4 h-4 ${quickMode ? 'text-yellow-500' : 'text-muted-foreground'}`} />
-                <span className="text-sm text-muted-foreground">Quick</span>
-                <Switch
-                  checked={quickMode}
-                  onCheckedChange={setQuickMode}
-                  aria-label="Toggle quick mode"
-                />
-              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2 cursor-help">
+                      <Zap className={`w-4 h-4 ${quickMode ? 'text-yellow-500' : 'text-muted-foreground'}`} />
+                      <span className="text-sm text-muted-foreground">Quick</span>
+                      <Switch
+                        checked={quickMode}
+                        onCheckedChange={setQuickMode}
+                        aria-label="Toggle quick mode"
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="text-sm"><strong>Quick Mode:</strong> Skip the execution plan preview and run tasks immediately. Best for simple requests.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <span className="text-sm text-muted-foreground">
                 {user?.phone || user?.name || 'User'}
               </span>
@@ -479,8 +489,8 @@ export default function Agent() {
           </div>
         </main>
 
-        {/* Input Area - Fixed at bottom with more space */}
-        <footer className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md p-4 ml-[var(--sidebar-width,0px)]" style={{ marginLeft: sidebarCollapsed ? '64px' : '280px' }}>
+        {/* Input Area - Fixed at bottom, above preview banner */}
+        <footer className="fixed bottom-10 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md p-4" style={{ marginLeft: sidebarCollapsed ? '64px' : '280px' }}>
           <div className="max-w-4xl mx-auto">
             {/* Uploaded files preview */}
             {uploadedFiles.length > 0 && (
