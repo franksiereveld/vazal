@@ -103,11 +103,47 @@ async def generate_plan(prompt: str) -> dict:
     except:
         return {"plan": ["Analyze request", "Execute task", "Return results"], "estimated_time": "30 seconds"}
 
-async def execute_task(prompt: str) -> str:
-    """Execute full agent task"""
+async def execute_task(prompt: str, request_id: str) -> str:
+    """Execute full agent task with activity streaming"""
+    
+    def send_activity(message: str, step: int = 0, total: int = 0):
+        """Send activity update to UI"""
+        output({
+            "type": "activity",
+            "requestId": request_id,
+            "message": message,
+            "step": step,
+            "total": total
+        })
+    
+    # Track tool calls for activity updates
+    original_tool_call = None
+    step_count = 0
+    
+    # Wrap agent to capture tool calls
+    class ActivityTracker:
+        def __init__(self, agent):
+            self.agent = agent
+            self.step = 0
+            
+        async def track_execution(self):
+            # Send initial activity
+            send_activity("Starting task execution...", 0, 5)
+            
+            sys.stdout = sys.stderr
+            await self.agent.run(prompt)
+            sys.stdout = original_stdout
+    
+    tracker = ActivityTracker(agent)
+    
+    # Send activity updates during execution
+    send_activity("Analyzing request...", 1, 5)
+    
     sys.stdout = sys.stderr
     await agent.run(prompt)
     sys.stdout = original_stdout
+    
+    send_activity("Processing complete", 5, 5)
     
     # Extract result
     final = "Task completed."
@@ -147,7 +183,7 @@ async def handle_request(data: dict):
             result = await generate_plan(prompt)
             output({"requestId": request_id, "result": result})
         elif mode == "execute":
-            result = await execute_task(prompt)
+            result = await execute_task(prompt, request_id)
             output({"requestId": request_id, "result": result})
         else:
             output({"requestId": request_id, "error": f"Unknown mode: {mode}"})

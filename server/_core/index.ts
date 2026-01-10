@@ -15,21 +15,71 @@ import { executeVazalStreaming } from "../services/vazalStreamingService";
 import { createConversation, saveMessage } from "../db";
 import { sdk } from "./sdk";
 
-// Get Vazal workspace path
-function getVazalWorkspace(): string {
-  const vazalPath = process.env.VAZAL_PATH || path.join(os.homedir(), "OpenManus");
-  return path.join(vazalPath, "workspace");
+// Get Vazal base path
+function getVazalPath(): string {
+  return process.env.VAZAL_PATH || path.join(os.homedir(), "OpenManus");
+}
+
+// Get all possible file locations
+function getFileSearchPaths(): string[] {
+  const vazalPath = getVazalPath();
+  return [
+    path.join(vazalPath, "workspace"),      // Main workspace
+    path.join(vazalPath, "output"),          // PPT and other outputs
+    path.join(vazalPath, "downloads"),       // Downloaded files
+    vazalPath,                               // Root OpenManus folder
+  ];
+}
+
+// Find a file in any of the search paths
+function findFile(filename: string): string | null {
+  const searchPaths = getFileSearchPaths();
+  
+  for (const searchPath of searchPaths) {
+    // Direct path
+    const directPath = path.join(searchPath, filename);
+    if (fs.existsSync(directPath)) {
+      return directPath;
+    }
+    
+    // Search recursively (1 level deep)
+    if (fs.existsSync(searchPath)) {
+      try {
+        const entries = fs.readdirSync(searchPath, { withFileTypes: true });
+        for (const entry of entries) {
+          if (entry.isDirectory()) {
+            const subPath = path.join(searchPath, entry.name, filename);
+            if (fs.existsSync(subPath)) {
+              return subPath;
+            }
+          }
+          // Check if filename matches (case-insensitive)
+          if (entry.isFile() && entry.name.toLowerCase() === filename.toLowerCase()) {
+            return path.join(searchPath, entry.name);
+          }
+        }
+      } catch (e) {
+        // Ignore permission errors
+      }
+    }
+  }
+  
+  return null;
+}
+
+// Get workspace for uploads
+function getUploadWorkspace(): string {
+  const workspace = path.join(getVazalPath(), "workspace");
+  fs.mkdirSync(workspace, { recursive: true });
+  return workspace;
 }
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const workspace = getVazalWorkspace();
-    fs.mkdirSync(workspace, { recursive: true });
-    cb(null, workspace);
+    cb(null, getUploadWorkspace());
   },
   filename: (req, file, cb) => {
-    // Keep original filename but make it safe
     const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
     cb(null, `${Date.now()}-${safeName}`);
   }
@@ -37,7 +87,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -63,11 +113,9 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
   
-  // Configure body parser with larger size limit
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   
-  // OAuth callback
   registerOAuthRoutes(app);
 
   // File upload endpoint
@@ -99,7 +147,7 @@ async function startServer() {
     }
   });
 
-  // File download endpoint
+  // File download endpoint - searches multiple locations
   app.get("/api/files/download/:filename", async (req, res) => {
     try {
       const user = await sdk.authenticateRequest(req);
@@ -109,31 +157,37 @@ async function startServer() {
       }
 
       const { filename } = req.params;
-      const workspace = getVazalWorkspace();
-      const filePath = path.join(workspace, filename);
+      const decodedFilename = decodeURIComponent(filename);
+      
+      console.log(`[Files] User ${user.id} requesting: ${decodedFilename}`);
+      
+      // Find the file in any of the search paths
+      const filePath = findFile(decodedFilename);
+      
+      if (!filePath) {
+        console.log(`[Files] File not found: ${decodedFilename}`);
+        console.log(`[Files] Searched in: ${getFileSearchPaths().join(', ')}`);
+        res.status(404).json({ error: "File not found", searched: getFileSearchPaths() });
+        return;
+      }
 
-      // Security check: ensure file is within workspace
+      // Security check: ensure file is within Vazal directory
       const realPath = path.resolve(filePath);
-      const realWorkspace = path.resolve(workspace);
-      if (!realPath.startsWith(realWorkspace)) {
+      const vazalPath = path.resolve(getVazalPath());
+      if (!realPath.startsWith(vazalPath)) {
         res.status(403).json({ error: "Access denied" });
         return;
       }
 
-      if (!fs.existsSync(filePath)) {
-        res.status(404).json({ error: "File not found" });
-        return;
-      }
-
-      console.log(`[Files] User ${user.id} downloading: ${filename}`);
-      res.download(filePath, filename);
+      console.log(`[Files] Serving: ${filePath}`);
+      res.download(filePath, decodedFilename);
     } catch (error: any) {
       console.error("[File Download Error]", error);
       res.status(500).json({ error: error.message || "Download failed" });
     }
   });
 
-  // List files in workspace
+  // List all files in Vazal directories
   app.get("/api/files/list", async (req, res) => {
     try {
       const user = await sdk.authenticateRequest(req);
@@ -142,29 +196,47 @@ async function startServer() {
         return;
       }
 
-      const workspace = getVazalWorkspace();
-      fs.mkdirSync(workspace, { recursive: true });
+      const allFiles: Array<{ name: string; path: string; size: number; modified: Date; location: string }> = [];
+      const searchPaths = getFileSearchPaths();
       
-      const files = fs.readdirSync(workspace);
-      const fileInfos = files.map(name => {
-        const filePath = path.join(workspace, name);
-        const stat = fs.statSync(filePath);
-        return {
-          name,
-          size: stat.size,
-          modified: stat.mtime,
-          isDirectory: stat.isDirectory(),
-        };
-      }).filter(f => !f.isDirectory);
+      for (const searchPath of searchPaths) {
+        if (!fs.existsSync(searchPath)) continue;
+        
+        try {
+          const files = fs.readdirSync(searchPath);
+          for (const name of files) {
+            const filePath = path.join(searchPath, name);
+            try {
+              const stat = fs.statSync(filePath);
+              if (stat.isFile()) {
+                allFiles.push({
+                  name,
+                  path: filePath,
+                  size: stat.size,
+                  modified: stat.mtime,
+                  location: path.basename(searchPath),
+                });
+              }
+            } catch (e) {
+              // Skip files we can't stat
+            }
+          }
+        } catch (e) {
+          // Skip directories we can't read
+        }
+      }
 
-      res.json({ files: fileInfos });
+      // Sort by modified date, newest first
+      allFiles.sort((a, b) => b.modified.getTime() - a.modified.getTime());
+
+      res.json({ files: allFiles });
     } catch (error: any) {
       console.error("[File List Error]", error);
       res.status(500).json({ error: error.message || "Failed to list files" });
     }
   });
 
-  // SSE endpoint for streaming Vazal responses
+  // SSE endpoint for streaming Vazal responses with activity updates
   app.post("/api/vazal/stream", async (req, res) => {
     try {
       const user = await sdk.authenticateRequest(req);
@@ -208,7 +280,6 @@ async function startServer() {
     })
   );
 
-  // Development mode uses Vite, production uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {

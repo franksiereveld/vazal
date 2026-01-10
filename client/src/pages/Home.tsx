@@ -81,7 +81,7 @@ export default function Home() {
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card">
               <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-medium">Powered by OpenManus + DeepSeek-R1 70B</span>
+              <span className="text-sm font-medium">Powered by DeepSeek-R1 70B + OpenManus Foundation</span>
             </div>
             
             <h1 className="text-6xl md:text-8xl font-bold tracking-tight">
@@ -223,7 +223,7 @@ export default function Home() {
               },
               {
                 title: "Open Source Stack",
-                description: "Built on OpenManus + DeepSeek-R1 70B. Apache 2.0 licensed, fully auditable, community-driven innovation."
+                description: "Built on DeepSeek-R1 70B + OpenManus Foundation. Apache 2.0 licensed, fully auditable, community-driven innovation."
               },
               {
                 title: "Infinite Scale",
@@ -279,7 +279,7 @@ export default function Home() {
             <Card className="p-8">
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-2xl font-bold mb-2">OpenManus</h3>
+                  <h3 className="text-2xl font-bold mb-2">OpenManus Foundation</h3>
                   <p className="text-muted-foreground">
                     51,300+ stars • MIT License • Production-ready agent framework
                   </p>

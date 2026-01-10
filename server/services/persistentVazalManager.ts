@@ -190,6 +190,13 @@ class PersistentVazalManager extends EventEmitter {
       console.log(`[PersistentVazal] Session ${session.userId} is ready`);
       session.isReady = true;
       this.emit(`ready:${session.userId}`);
+    } else if (event.type === "activity") {
+      // Emit activity updates for UI
+      console.log(`[PersistentVazal] Activity: ${event.message}`);
+      this.emit(`activity:${session.userId}`, event);
+    } else if (event.type === "progress") {
+      // Emit progress updates
+      this.emit(`progress:${session.userId}`, event);
     } else if (event.requestId) {
       const request = session.pendingRequests.get(event.requestId);
       if (request) {
@@ -202,6 +209,7 @@ class PersistentVazalManager extends EventEmitter {
       }
     }
 
+    // Always emit all events for listeners
     this.emit(`event:${session.userId}`, event);
   }
 
